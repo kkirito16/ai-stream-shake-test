@@ -61,13 +61,29 @@ export default defineComponent({
     const scrollIntoView = ref('');
     let aiSeq = 0;
 
-    function scrollToBottom() {
+    // 滚动节流：避免每帧都强制 scroll-into-view 造成的抖动/卡顿
+    let lastScrollTs = 0;
+    let scrollPending: ReturnType<typeof setTimeout> | null = null;
+    function doScroll() {
+      // 通过 toggle anchor 触发滚动（相同值不会重新滚动）
+      scrollIntoView.value = '';
       nextTick(() => {
-        scrollIntoView.value = '';
-        setTimeout(() => {
-          scrollIntoView.value = 'chat-bottom';
-        }, 0);
+        scrollIntoView.value = 'chat-bottom';
       });
+    }
+    function scrollToBottom() {
+      const now = Date.now();
+      const gap = 120; // 最多每 120ms 滚动一次
+      if (now - lastScrollTs >= gap) {
+        lastScrollTs = now;
+        doScroll();
+      } else if (!scrollPending) {
+        scrollPending = setTimeout(() => {
+          scrollPending = null;
+          lastScrollTs = Date.now();
+          doScroll();
+        }, gap - (now - lastScrollTs));
+      }
     }
 
     // 流式更新时，把 sim 的正文同步到最后一条 AI 消息
@@ -85,6 +101,8 @@ export default defineComponent({
           last.content = state.content;
           last.streaming = false;
         }
+        // 结束时确保滚到底
+        lastScrollTs = 0;
         scrollToBottom();
       }
     );
@@ -149,16 +167,31 @@ export default defineComponent({
       <view v-if="settingsOpen" class="settings-body">
         <view class="field-row">
           <view class="field">
-            <text class="field-label">输出速度 (ms)</text>
-            <input class="field-input" type="number" v-model.number="cfg.speedMs" />
+            <text class="field-label">打字速度 (字/秒)</text>
+            <input class="field-input" type="number" v-model.number="cfg.cps" />
           </view>
           <view class="field">
-            <text class="field-label">每次字符数</text>
+            <text class="field-label">每帧字符数</text>
             <input class="field-input" type="number" v-model.number="cfg.charsPerTick" />
           </view>
           <view class="field">
-            <text class="field-label">刷新频率 (ms)</text>
-            <input class="field-input" type="number" v-model.number="cfg.throttleMs" />
+            <text class="field-label">后端到达间隔 (ms)</text>
+            <input class="field-input" type="number" v-model.number="cfg.producerDelayMs" />
+          </view>
+        </view>
+
+        <view class="switch-row">
+          <view class="switch-item">
+            <text class="switch-label">后端随机抖动</text>
+            <switch :checked="cfg.randomDelay" @change="(e:any)=>cfg.randomDelay=e.detail.value" color="#3a7afe" style="transform:scale(0.8)" />
+          </view>
+          <view class="switch-item">
+            <text class="switch-label">积压自动追赶</text>
+            <switch :checked="cfg.catchUp" @change="(e:any)=>cfg.catchUp=e.detail.value" color="#3a7afe" style="transform:scale(0.8)" />
+          </view>
+          <view class="switch-item buffer-tip">
+            <text class="switch-label">缓冲积压</text>
+            <text class="buffer-num">{{ state.bufferedChars }} 字</text>
           </view>
         </view>
 
@@ -191,7 +224,7 @@ export default defineComponent({
             <c-markdown
               :content="msg.content"
               :show-cursor="msg.streaming"
-              strategy="baseline"
+              strategy="incremental"
             />
           </view>
         </view>
@@ -278,6 +311,35 @@ export default defineComponent({
   flex-direction: row;
   gap: 16rpx;
   margin-bottom: 20rpx;
+}
+.switch-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 20rpx;
+}
+.switch-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  background: #f7f8fa;
+  border-radius: 12rpx;
+  padding: 10rpx 16rpx;
+}
+.switch-label {
+  font-size: 22rpx;
+  color: #86909c;
+  margin-bottom: 4rpx;
+}
+.buffer-tip {
+  align-items: flex-start;
+}
+.buffer-num {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #3a7afe;
 }
 .field {
   flex: 1;
