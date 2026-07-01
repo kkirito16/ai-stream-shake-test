@@ -202,10 +202,9 @@ export default defineComponent({
           <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" :tail="isTailUnit(index)" />
         </view>
 
-        <!-- 段落 -->
+        <!-- 段落（流式光标已隐藏，改由「最新字淡入」表现打字进度） -->
         <view v-else-if="unit.node.tag === 'p'" class="md-p">
           <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" :tail="isTailUnit(index)" />
-          <text v-if="isLastCursorSpot(index)" class="cursor"></text>
         </view>
 
         <!-- 无序列表 -->
