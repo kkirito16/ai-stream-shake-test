@@ -104,6 +104,19 @@ function balanceStars(text: string): string {
 }
 
 /**
+ * 判断位于 pos 的单个 `*` 是否是无序列表的项目符号（bullet），而非斜体定界符。
+ * 依据 Markdown 规则：bullet 需位于行首（前面只有空白缩进），且后面紧跟空白。
+ * 例：`* 项目`、`  *  文本` 里的 `*` 都是列表标记，不该计入斜体统计。
+ */
+function isListBullet(text: string, pos: number): boolean {
+  const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+  const before = text.slice(lineStart, pos);
+  if (!/^\s*$/.test(before)) return false; // 前面有非空白 → 不是行首标记
+  const afterChar = text[pos + 1];
+  return afterChar === ' ' || afterChar === '\t'; // 后跟空白才是合法 bullet
+}
+
+/**
  * @param width 2 -> 处理 **（加粗）；1 -> 处理 *（斜体）
  */
 function closeMarker(text: string, width: 1 | 2): string {
@@ -117,7 +130,12 @@ function closeMarker(text: string, width: 1 | 2): string {
   let lastPos = -1;
   for (const r of runs) {
     const isDouble = r.len >= 2;
-    if ((width === 2 && isDouble) || (width === 1 && r.len === 1)) {
+    if (width === 2 && isDouble) {
+      count += 1;
+      lastPos = r.pos;
+    } else if (width === 1 && r.len === 1) {
+      // 行首的列表项标记 `* ` 不是斜体定界符，排除以免污染奇偶判断
+      if (isListBullet(text, r.pos)) continue;
       count += 1;
       lastPos = r.pos;
     }
