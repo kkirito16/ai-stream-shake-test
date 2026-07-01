@@ -13,9 +13,10 @@ const DEFAULT_REPLY = `你好！我可以帮你分析这个问题。下面是我
 
 ### 一、核心思路
 
-1. **先明确目标** —— 想清楚要解决什么。
-2. **拆解步骤** —— 把大问题拆成小块。
-3. **逐步验证** —— 每一步都跑通再往下走。
+1. **先明确目标** —— 想清楚要**真正**解决什么。
+2. 拆解步骤，把大问题拆成 *若干小块*。
+3. 逐步验证，用 \`npm run build\` 每步都跑通。
+4. 过期的 ~~旧方案~~ 直接淘汰，参考[官方文档](https://uniapp.dcloud.net.cn)。
 
 ### 二、示例代码
 
@@ -25,7 +26,7 @@ function hello(name) {
 }
 \`\`\`
 
-希望这些对你有帮助，如需更详细的方案可以继续追问～`;
+希望这些对你有帮助，如需**更详细的方案**可以继续追问～`;
 
 export default defineComponent({
   name: 'IndexPage',
@@ -54,6 +55,8 @@ export default defineComponent({
     // ===== 设置 =====
     const replyText = ref(DEFAULT_REPLY);
     const settingsOpen = ref(true);
+    // 流式消歧开关：消除 ** ` ~~ 链接等特殊符号在逐字流式中的闪现
+    const sanitizeStream = ref(true);
 
     // ===== 对话 =====
     const messages = reactive<ChatMsg[]>([]);
@@ -136,7 +139,7 @@ export default defineComponent({
     return {
       state, cfg,
       statusBarHeight, navRowHeight, navRightGap,
-      replyText, settingsOpen,
+      replyText, settingsOpen, sanitizeStream,
       messages, inputText, scrollIntoView,
       send, clearChat, toggleSettings,
     };
@@ -182,6 +185,10 @@ export default defineComponent({
 
         <view class="switch-row">
           <view class="switch-item">
+            <text class="switch-label">流式消歧(隐藏**符号)</text>
+            <switch :checked="sanitizeStream" @change="(e:any)=>sanitizeStream=e.detail.value" color="#3a7afe" style="transform:scale(0.8)" />
+          </view>
+          <view class="switch-item">
             <text class="switch-label">后端随机抖动</text>
             <switch :checked="cfg.randomDelay" @change="(e:any)=>cfg.randomDelay=e.detail.value" color="#3a7afe" style="transform:scale(0.8)" />
           </view>
@@ -189,6 +196,9 @@ export default defineComponent({
             <text class="switch-label">积压自动追赶</text>
             <switch :checked="cfg.catchUp" @change="(e:any)=>cfg.catchUp=e.detail.value" color="#3a7afe" style="transform:scale(0.8)" />
           </view>
+        </view>
+
+        <view class="switch-row">
           <view class="switch-item buffer-tip">
             <text class="switch-label">缓冲积压</text>
             <text class="buffer-num">{{ state.bufferedChars }} 字</text>
@@ -224,6 +234,7 @@ export default defineComponent({
             <c-markdown
               :content="msg.content"
               :show-cursor="msg.streaming"
+              :sanitize-stream="sanitizeStream"
               strategy="incremental"
             />
           </view>

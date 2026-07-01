@@ -2,6 +2,7 @@
 import { defineComponent, ref, watch, PropType } from 'vue';
 import { renderNodes, RenderNode } from '@/helpers/markdownParser';
 import { createIncrementalParser, assignStableKeys } from '@/helpers/incrementalParser';
+import { sanitizeStreamingMarkdown } from '@/helpers/streamMarkdownSanitizer';
 
 export type RenderStrategy = 'baseline' | 'incremental' | 'stableKey' | 'raf';
 
@@ -13,6 +14,10 @@ export default defineComponent({
     content: { type: String, default: '' },
     showCursor: { type: Boolean, default: false },
     strategy: { type: String as PropType<RenderStrategy>, default: 'baseline' },
+    // 流式消歧：解析前对末尾未闭合的行内标记(** * ` ~~ 链接)做处理，
+    // 避免 `**`、`` ` `` 等特殊符号在逐字流式中闪现（详见 streamMarkdownSanitizer）。
+    // 仅在 showCursor(流式中) 时生效；对已闭合文本恒等，不影响结束态。
+    sanitizeStream: { type: Boolean, default: true },
   },
   emits: ['reparse'],
   setup(props, { emit }) {
@@ -21,7 +26,12 @@ export default defineComponent({
     let rafId: any = null;
     let pendingContent = '';
 
-    function doRender(content: string) {
+    function doRender(rawContent: string) {
+      // 流式进行中做消歧，消除特殊符号闪现；结束或关闭时用原文。
+      const content =
+        props.sanitizeStream && props.showCursor
+          ? sanitizeStreamingMarkdown(rawContent)
+          : rawContent;
       let result: RenderNode[];
       if (props.strategy === 'incremental') {
         result = incParser.render(content);
@@ -62,6 +72,14 @@ export default defineComponent({
       () => props.strategy,
       () => {
         incParser.reset();
+        doRender(props.content);
+      }
+    );
+
+    // 流式结束(showCursor:true→false)时，用原文再渲染一次，确保结束态为完整原文。
+    watch(
+      () => props.showCursor,
+      () => {
         doRender(props.content);
       }
     );
