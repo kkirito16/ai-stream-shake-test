@@ -1,0 +1,23 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "AI 流式消息抖动测试",
+        "navigationStyle": "custom"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "AI 流式消息抖动测试",
+    "navigationBarBackgroundColor": "#F7F8FA",
+    "backgroundColor": "#F7F8FA"
+  },
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^c-(.*)": "@/components/c-$1/c-$1.vue"
+    }
+  }
+}

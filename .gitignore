@@ -1,0 +1,23 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+unpackage/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.local
+
+# uni-app
+src/manifest.json.bak
