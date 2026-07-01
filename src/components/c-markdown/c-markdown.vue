@@ -95,6 +95,7 @@ export default defineComponent({
       :nodes="nodes"
       :show-cursor="showCursor"
       :stable-key="strategy === 'stableKey'"
+      :animate="showCursor"
     />
   </view>
 </template>

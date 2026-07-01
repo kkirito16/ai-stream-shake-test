@@ -84,6 +84,12 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    // 逐字淡入动画：流式进行中开启，把文本段拆成单字并做一次性淡入；
+    // 关闭时合并为整段文本（结束态/性能）。
+    animate: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup(props) {
     const units = computed<Unit[]>(() => buildUnits(props.nodes || []));
@@ -102,6 +108,22 @@ export default defineComponent({
       if (seg.link) c.push('md-link');
       if (!seg.bold && !seg.italic && !seg.code && !seg.link) c.push('md-text');
       return c;
+    },
+    // 逐字模式：把一个文本单元的所有段拆成单字，key 用「单元内全局字序」保持稳定。
+    // 稳定 key 让已上屏的字复用节点、不重播动画；只有新挂载的字触发一次淡入。
+    unitChars(segs: Seg[]): Array<{ c: string; k: number; cls: string[] }> {
+      const out: Array<{ c: string; k: number; cls: string[] }> = [];
+      let idx = 0;
+      for (const seg of segs) {
+        const cls = this.segClass(seg);
+        const text = seg.text || '';
+        // 用 Array.from 以正确处理 emoji/代理对，避免半个字符
+        for (const ch of Array.from(text)) {
+          out.push({ c: ch, k: idx, cls });
+          idx += 1;
+        }
+      }
+      return out;
     },
     // 光标：挂在最后一个块级段落之后
     isLastCursorSpot(index: number): boolean {
@@ -123,11 +145,22 @@ export default defineComponent({
     <block v-for="(unit, index) in units" :key="unitKey(unit, index)">
       <!-- ===== 行内文本段：扁平的 <text> 兄弟，绝不嵌套子组件 ===== -->
       <text v-if="unit.kind === 'text'" class="md-inline">
-        <text
-          v-for="(seg, si) in unit.segs"
-          :key="si"
-          :class="segClass(seg)"
-        >{{ seg.text }}</text>
+        <!-- 逐字淡入模式：每个字一个 <text>，稳定 key 保证旧字不重播动画 -->
+        <template v-if="animate">
+          <text
+            v-for="ch in unitChars(unit.segs)"
+            :key="ch.k"
+            :class="[...ch.cls, 'md-char']"
+          >{{ ch.c }}</text>
+        </template>
+        <!-- 整段模式：按样式段渲染（结束态/性能） -->
+        <template v-else>
+          <text
+            v-for="(seg, si) in unit.segs"
+            :key="si"
+            :class="segClass(seg)"
+          >{{ seg.text }}</text>
+        </template>
       </text>
 
       <!-- ===== 图片 ===== -->
@@ -145,56 +178,56 @@ export default defineComponent({
           v-if="unit.node.tag && /^h[1-6]$/.test(unit.node.tag)"
           :class="['md-heading', 'md-' + unit.node.tag]"
         >
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
         </view>
 
         <!-- 段落 -->
         <view v-else-if="unit.node.tag === 'p'" class="md-p">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
           <text v-if="isLastCursorSpot(index)" class="cursor"></text>
         </view>
 
         <!-- 无序列表 -->
         <view v-else-if="unit.node.tag === 'ul'" class="md-ul">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
         </view>
 
         <!-- 有序列表 -->
         <view v-else-if="unit.node.tag === 'ol'" class="md-ol">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
         </view>
 
         <!-- 列表项 -->
         <view v-else-if="unit.node.tag === 'li'" class="md-li">
           <text class="md-li-dot">•</text>
           <view class="md-li-body">
-            <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+            <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
           </view>
         </view>
 
         <!-- 引用 -->
         <view v-else-if="unit.node.tag === 'blockquote'" class="md-quote">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
         </view>
 
         <!-- 表格 -->
         <view v-else-if="unit.node.tag === 'table'" class="md-table">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
         </view>
         <view v-else-if="unit.node.tag === 'thead'" class="md-thead">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
         </view>
         <view v-else-if="unit.node.tag === 'tbody'" class="md-tbody">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
         </view>
         <view v-else-if="unit.node.tag === 'tr'" class="md-tr">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
         </view>
         <view v-else-if="unit.node.tag === 'th'" class="md-th">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
         </view>
         <view v-else-if="unit.node.tag === 'td'" class="md-td">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
         </view>
 
         <!-- 代码块 -->
@@ -340,6 +373,16 @@ export default defineComponent({
 }
 
 .md-link { color: #3a7afe; }
+
+/* 逐字淡入：新挂载的字符播放一次淡入；已上屏字符因稳定 key 复用节点不重播。
+   仅用 opacity（不含位移/transform），零布局抖动，两端一致。 */
+.md-char {
+  animation: char-in 0.28s ease-out both;
+}
+@keyframes char-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 
 .md-img {
   max-width: 100%;
