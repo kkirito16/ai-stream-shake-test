@@ -84,9 +84,16 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-    // 逐字淡入动画：流式进行中开启，把文本段拆成单字并做一次性淡入；
-    // 关闭时合并为整段文本（结束态/性能）。
+    // 逐字淡入动画：流式进行中开启。仅对「全局最新的那一个字」做淡入，
+    // 其余字实心。避免每帧重建导致整段字反复从透明重新淡入（跨端不可靠的
+    // 逐字 key 复用问题）。
     animate: {
+      type: Boolean,
+      default: false,
+    },
+    // 本组件是否位于「全局尾部路径」上（根组件在 animate 时为 true，
+    // 沿最后一个内容单元逐层下传）。只有尾部路径最深处的最后一个字才淡入。
+    tail: {
       type: Boolean,
       default: false,
     },
@@ -110,20 +117,34 @@ export default defineComponent({
       return c;
     },
     // 逐字模式：把一个文本单元的所有段拆成单字，key 用「单元内全局字序」保持稳定。
-    // 稳定 key 让已上屏的字复用节点、不重播动画；只有新挂载的字触发一次淡入。
-    unitChars(segs: Seg[]): Array<{ c: string; k: number; cls: string[] }> {
-      const out: Array<{ c: string; k: number; cls: string[] }> = [];
+    // isLast 标记该单元最后一个字，供尾字淡入判断。
+    unitChars(segs: Seg[]): Array<{ c: string; k: number; cls: string[]; isLast: boolean }> {
+      const out: Array<{ c: string; k: number; cls: string[]; isLast: boolean }> = [];
       let idx = 0;
       for (const seg of segs) {
         const cls = this.segClass(seg);
         const text = seg.text || '';
         // 用 Array.from 以正确处理 emoji/代理对，避免半个字符
         for (const ch of Array.from(text)) {
-          out.push({ c: ch, k: idx, cls });
+          out.push({ c: ch, k: idx, cls, isLast: false });
           idx += 1;
         }
       }
+      if (out.length) out[out.length - 1].isLast = true;
       return out;
+    },
+    // 全局尾部单元下标：最后一个承载文本内容的单元（text / block）。
+    // 只有它（且本组件在尾部路径上）才可能包含需要淡入的「最新字」。
+    tailUnitIndex(): number {
+      for (let i = this.units.length - 1; i >= 0; i--) {
+        const u = this.units[i];
+        if (u.kind === 'text' || u.kind === 'block') return i;
+      }
+      return -1;
+    },
+    // 该 index 是否为尾部单元（且本组件位于尾部路径）
+    isTailUnit(index: number): boolean {
+      return this.animate && this.tail && index === this.tailUnitIndex();
     },
     // 光标：挂在最后一个块级段落之后
     isLastCursorSpot(index: number): boolean {
@@ -145,15 +166,15 @@ export default defineComponent({
     <block v-for="(unit, index) in units" :key="unitKey(unit, index)">
       <!-- ===== 行内文本段：扁平的 <text> 兄弟，绝不嵌套子组件 ===== -->
       <text v-if="unit.kind === 'text'" class="md-inline">
-        <!-- 逐字淡入模式：每个字一个 <text>，稳定 key 保证旧字不重播动画 -->
-        <template v-if="animate">
+        <!-- 尾部单元：除最后一个字外整段实心渲染，仅最新字做一次淡入 -->
+        <template v-if="isTailUnit(index)">
           <text
             v-for="ch in unitChars(unit.segs)"
             :key="ch.k"
-            :class="[...ch.cls, 'md-char']"
+            :class="ch.isLast ? [...ch.cls, 'md-char'] : ch.cls"
           >{{ ch.c }}</text>
         </template>
-        <!-- 整段模式：按样式段渲染（结束态/性能） -->
+        <!-- 非尾部：按样式段整段渲染（无动画，省节点） -->
         <template v-else>
           <text
             v-for="(seg, si) in unit.segs"
@@ -178,56 +199,56 @@ export default defineComponent({
           v-if="unit.node.tag && /^h[1-6]$/.test(unit.node.tag)"
           :class="['md-heading', 'md-' + unit.node.tag]"
         >
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" :tail="isTailUnit(index)" />
         </view>
 
         <!-- 段落 -->
         <view v-else-if="unit.node.tag === 'p'" class="md-p">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" :tail="isTailUnit(index)" />
           <text v-if="isLastCursorSpot(index)" class="cursor"></text>
         </view>
 
         <!-- 无序列表 -->
         <view v-else-if="unit.node.tag === 'ul'" class="md-ul">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" :tail="isTailUnit(index)" />
         </view>
 
         <!-- 有序列表 -->
         <view v-else-if="unit.node.tag === 'ol'" class="md-ol">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" :tail="isTailUnit(index)" />
         </view>
 
         <!-- 列表项 -->
         <view v-else-if="unit.node.tag === 'li'" class="md-li">
           <text class="md-li-dot">•</text>
           <view class="md-li-body">
-            <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
+            <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" :tail="isTailUnit(index)" />
           </view>
         </view>
 
         <!-- 引用 -->
         <view v-else-if="unit.node.tag === 'blockquote'" class="md-quote">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" :tail="isTailUnit(index)" />
         </view>
 
         <!-- 表格 -->
         <view v-else-if="unit.node.tag === 'table'" class="md-table">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" :tail="isTailUnit(index)" />
         </view>
         <view v-else-if="unit.node.tag === 'thead'" class="md-thead">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" :tail="isTailUnit(index)" />
         </view>
         <view v-else-if="unit.node.tag === 'tbody'" class="md-tbody">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" :tail="isTailUnit(index)" />
         </view>
         <view v-else-if="unit.node.tag === 'tr'" class="md-tr">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" :tail="isTailUnit(index)" />
         </view>
         <view v-else-if="unit.node.tag === 'th'" class="md-th">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" :tail="isTailUnit(index)" />
         </view>
         <view v-else-if="unit.node.tag === 'td'" class="md-td">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" />
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" :tail="isTailUnit(index)" />
         </view>
 
         <!-- 代码块 -->
@@ -374,13 +395,13 @@ export default defineComponent({
 
 .md-link { color: #3a7afe; }
 
-/* 逐字淡入：新挂载的字符播放一次淡入；已上屏字符因稳定 key 复用节点不重播。
-   仅用 opacity（不含位移/transform），零布局抖动，两端一致。 */
+/* 尾字淡入：任意时刻仅「最新的一个字」带此动画，其余字实心(opacity 默认 1)。
+   避免每帧重建导致整段字反复从透明重新淡入。仅用 opacity，零布局抖动。 */
 .md-char {
-  animation: char-in 0.28s ease-out both;
+  animation: char-in 0.3s ease-out both;
 }
 @keyframes char-in {
-  from { opacity: 0; }
+  from { opacity: 0.15; }
   to { opacity: 1; }
 }
 
