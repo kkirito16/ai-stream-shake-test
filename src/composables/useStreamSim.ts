@@ -24,7 +24,7 @@ export interface StreamConfig {
   randomDelay: boolean;    // 后端到达间隔加随机抖动（更贴近真实 SSE）
   catchUp: boolean;        // 缓冲积压时自动追赶（防长文拖太久，仍保持平滑）
   producerMode: ProducerMode; // 生产者投递模型：smooth=平滑随机 / realistic=还原真实 chunk 卡顿
-  bypassBuffer: boolean;   // 绕过缓冲：chunk 到达即上屏（还原后端原始卡顿，用于对比）
+  bypassBuffer: boolean;   // 绕过缓冲：不做 cps 匀速/削峰，按帧快速逐字吐缓冲区（保留后端停顿/不均→呈现「忽快忽停」的原始卡顿，但仍逐字）
   stallProbability: number; // realistic 模式下，每个 chunk 后触发「长停顿」的概率(0~1)
 }
 
@@ -131,24 +131,13 @@ export function useStreamSim() {
       return;
     }
 
-    // 投递一个 chunk
+    // 投递一个 chunk（无论是否 bypass，生产者都只把字投进缓冲区，上屏交给消费者逐字进行）
     const chunk = nextChunkSize();
     producedLen = Math.min(producedLen + chunk, fullContent.length);
     state.bufferedChars = producedLen - consumedLen;
 
-    // bypassBuffer：chunk 到达即上屏（不经消费者削峰，直接还原后端原始卡顿）
-    if (cfg.bypassBuffer) {
-      consumedLen = producedLen;
-      state.content = fullContent.slice(0, consumedLen);
-      state.outputChars = consumedLen;
-      state.bufferedChars = 0;
-      onUpdate && onUpdate();
-    }
-
     if (producedLen >= fullContent.length) {
       producerDone = true;
-      // bypass 模式下没有消费者收尾，这里直接结束
-      if (cfg.bypassBuffer) finish();
       return;
     }
 
@@ -172,8 +161,6 @@ export function useStreamSim() {
 
   function consumeStep() {
     if (!state.isStreaming) return;
-    // bypass 模式不启用消费者（上屏由生产者直接完成）
-    if (cfg.bypassBuffer) return;
     if (state.isPaused) {
       consumeTimer = setTimeout(consumeStep, 60);
       return;
@@ -182,10 +169,15 @@ export function useStreamSim() {
     const available = producedLen - consumedLen; // 缓冲区可消费量
     if (available > 0) {
       let take = Math.max(1, cfg.charsPerTick);
-      // 追赶：缓冲积压越多，单帧多吃一点（仍受上限约束，保持平滑）
-      if (cfg.catchUp && available > 40) {
-        take += Math.floor(available / 60);
-        take = Math.min(take, Math.max(4, cfg.charsPerTick * 4));
+      // bypass：绕过 cps 削峰与追赶合并——每帧只吐 charsPerTick 个字（默认1，逐字），
+      // 但以极短间隔尽快消费，让 burst「唰」地快速逐字刷出、停顿期缓冲为空则等待，
+      // 卡顿体现在「忽快忽停」的节奏上，而不是整段 pop。
+      if (!cfg.bypassBuffer) {
+        // 追赶：缓冲积压越多，单帧多吃一点（仍受上限约束，保持平滑）
+        if (cfg.catchUp && available > 40) {
+          take += Math.floor(available / 60);
+          take = Math.min(take, Math.max(4, cfg.charsPerTick * 4));
+        }
       }
       consumedLen = Math.min(consumedLen + take, producedLen, fullContent.length);
       state.content = fullContent.slice(0, consumedLen);
@@ -200,8 +192,14 @@ export function useStreamSim() {
       return;
     }
 
-    // 缓冲空(后端还没来)：短等；否则按节奏
-    const nextMs = available > 0 ? consumeTickMs() : 30;
+    // bypass：缓冲有字时用最小间隔尽快逐字；缓冲空时短等后端。
+    // 普通：缓冲有字时按 cps 节奏；缓冲空时短等。
+    let nextMs: number;
+    if (cfg.bypassBuffer) {
+      nextMs = available > 0 ? 8 : 30;
+    } else {
+      nextMs = available > 0 ? consumeTickMs() : 30;
+    }
     consumeTimer = setTimeout(consumeStep, nextMs);
   }
 
