@@ -183,6 +183,23 @@ export default defineComponent({
           </view>
         </view>
 
+        <!-- 后端投递模型：还原真实 chunk 卡顿 vs 平滑 -->
+        <view class="seg-row">
+          <text class="seg-title">后端投递模型</text>
+          <view class="seg">
+            <text
+              class="seg-btn"
+              :class="{ active: cfg.producerMode === 'realistic' }"
+              @click="cfg.producerMode = 'realistic'"
+            >真实卡顿</text>
+            <text
+              class="seg-btn"
+              :class="{ active: cfg.producerMode === 'smooth' }"
+              @click="cfg.producerMode = 'smooth'"
+            >平滑</text>
+          </view>
+        </view>
+
         <view class="switch-row">
           <view class="switch-item">
             <text class="switch-label">流式消歧(隐藏**符号)</text>
@@ -199,9 +216,17 @@ export default defineComponent({
         </view>
 
         <view class="switch-row">
+          <view class="switch-item">
+            <text class="switch-label">绕过缓冲(原始卡顿)</text>
+            <switch :checked="cfg.bypassBuffer" @change="(e:any)=>cfg.bypassBuffer=e.detail.value" color="#f5222d" style="transform:scale(0.8)" />
+          </view>
           <view class="switch-item buffer-tip">
             <text class="switch-label">缓冲积压</text>
             <text class="buffer-num">{{ state.bufferedChars }} 字</text>
+          </view>
+          <view class="switch-item buffer-tip">
+            <text class="switch-label">后端状态</text>
+            <text class="buffer-num" :class="{ stalling: state.stalling }">{{ state.stalling ? '停顿中…' : (state.isStreaming ? '推送中' : '空闲') }}</text>
           </view>
         </view>
 
@@ -351,6 +376,40 @@ export default defineComponent({
   font-size: 28rpx;
   font-weight: 600;
   color: #3a7afe;
+}
+.buffer-num.stalling {
+  color: #f5222d;
+}
+
+/* 分段选择器：后端投递模型 */
+.seg-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+.seg-title {
+  font-size: 24rpx;
+  color: #86909c;
+}
+.seg {
+  display: flex;
+  flex-direction: row;
+  background: #f2f3f5;
+  border-radius: 12rpx;
+  padding: 4rpx;
+}
+.seg-btn {
+  font-size: 24rpx;
+  color: #86909c;
+  padding: 8rpx 28rpx;
+  border-radius: 10rpx;
+}
+.seg-btn.active {
+  background: #fff;
+  color: #3a7afe;
+  font-weight: 600;
 }
 .field {
   flex: 1;
