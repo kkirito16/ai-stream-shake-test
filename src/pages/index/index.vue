@@ -46,6 +46,13 @@ export default defineComponent({
     const scrollIntoView = ref('');
     let aiSeq = 0;
 
+    // ===== 智能跟随（auto-follow）=====
+    // 核心：只有当用户「贴着底部」时才自动跟随流式内容滚到底；
+    // 一旦用户上滑查看历史，立即停止强制滚动，视口保持不动（符合阅读习惯）；
+    // 用户滑回底部附近时自动恢复跟随。
+    const autoFollow = ref(true); // 是否自动跟随到底部
+    let lastScrollTop = 0; // 记录上次 scrollTop，用于判断滚动方向
+
     // 滚动节流：避免每帧都强制 scroll-into-view 造成的抖动/卡顿
     let lastScrollTs = 0;
     let scrollPending: ReturnType<typeof setTimeout> | null = null;
@@ -57,6 +64,8 @@ export default defineComponent({
       });
     }
     function scrollToBottom() {
+      // 用户正在看历史（未贴底）时，绝不强制拉到底
+      if (!autoFollow.value) return;
       const now = Date.now();
       const gap = 120; // 最多每 120ms 滚动一次
       if (now - lastScrollTs >= gap) {
@@ -69,6 +78,26 @@ export default defineComponent({
           doScroll();
         }, gap - (now - lastScrollTs));
       }
+    }
+
+    // scroll-view 滚动回调：用户向上滑 → 关闭跟随；滑回底部由 onScrollToLower 恢复
+    function onScroll(e: any) {
+      const top = (e && e.detail && e.detail.scrollTop) || 0;
+      // 向上滚动超过阈值，判定为用户主动查看历史，停止跟随
+      if (top < lastScrollTop - 4) {
+        autoFollow.value = false;
+      }
+      lastScrollTop = top;
+    }
+    // 滚到底部附近触发：恢复自动跟随
+    function onScrollToLower() {
+      autoFollow.value = true;
+    }
+    // 点击「回到底部」按钮：恢复跟随并立即滚到底
+    function backToBottom() {
+      autoFollow.value = true;
+      lastScrollTs = 0;
+      doScroll();
     }
 
     // 流式更新时，把 sim 的正文同步到最后一条 AI 消息
@@ -104,6 +133,9 @@ export default defineComponent({
       aiSeq += 1;
       messages.push({ id: 'a' + Date.now(), role: 'ai', content: '', streaming: true });
 
+      // 用户主动发问：强制恢复跟随并滚到底
+      autoFollow.value = true;
+      lastScrollTs = 0;
       scrollToBottom();
       // 走真实后端 SSE：把问题发给后端，回复内容来自后端报文文件
       sim.start(text);
@@ -133,7 +165,9 @@ export default defineComponent({
       settingsOpen, sanitizeStream, showReason,
       messages, inputText, scrollIntoView,
       backendStatusText,
+      autoFollow,
       send, clearChat, toggleSettings,
+      onScroll, onScrollToLower, backToBottom,
     };
   },
 });
@@ -218,6 +252,10 @@ export default defineComponent({
       class="chat"
       :scroll-into-view="scrollIntoView"
       :scroll-with-animation="false"
+      :scroll-anchoring="true"
+      :lower-threshold="40"
+      @scroll="onScroll"
+      @scrolltolower="onScrollToLower"
     >
       <view class="chat-inner">
         <view v-if="messages.length === 0" class="empty">
@@ -255,6 +293,12 @@ export default defineComponent({
       </view>
     </scroll-view>
 
+    <!-- 「回到底部」悬浮按钮：用户上滑查看历史（未跟随）时显示 -->
+    <view v-if="!autoFollow" class="to-bottom" @click="backToBottom">
+      <text class="to-bottom-icon">↓</text>
+      <text class="to-bottom-text">回到底部</text>
+    </view>
+
     <!-- ===== 输入栏 ===== -->
     <view class="input-bar">
       <input
@@ -278,6 +322,7 @@ export default defineComponent({
   display: flex;
   flex-direction: column;
   background: #f2f3f5;
+  position: relative;
 }
 
 /* 顶部 */
@@ -536,6 +581,33 @@ export default defineComponent({
 
 .bottom-anchor {
   height: 2rpx;
+}
+
+/* 「回到底部」悬浮按钮 */
+.to-bottom {
+  position: absolute;
+  right: 24rpx;
+  bottom: 140rpx;
+  z-index: 20;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6rpx;
+  padding: 12rpx 20rpx;
+  background: #fff;
+  border: 1rpx solid #e5e6eb;
+  border-radius: 999rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.12);
+}
+.to-bottom-icon {
+  font-size: 24rpx;
+  color: #1677ff;
+  line-height: 1;
+}
+.to-bottom-text {
+  font-size: 24rpx;
+  color: #1677ff;
+  line-height: 1;
 }
 
 /* 输入栏 */

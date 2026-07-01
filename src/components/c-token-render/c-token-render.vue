@@ -11,11 +11,23 @@ interface Seg {
   link?: boolean;
   href?: string;
 }
-// 渲染单元：块级节点 / 行内文本段序列 / 图片。
+// 表格单元格：行内内容拍平成带样式的文本段 + 对齐方式（left/center/right）。
+interface TableCell {
+  segs: Seg[];
+  align: string;
+}
+// 表格模型：表头行 + 若干数据行，供 display:table 一次性渲染，保证列宽自动对齐。
+interface TableModel {
+  head: TableCell[];
+  rows: TableCell[][];
+}
+
+// 渲染单元：块级节点 / 行内文本段序列 / 图片 / 表格。
 type Unit =
   | { kind: 'block'; node: RenderNode }
   | { kind: 'text'; segs: Seg[] }
-  | { kind: 'image'; src?: string; alt?: string };
+  | { kind: 'image'; src?: string; alt?: string }
+  | { kind: 'table'; table: TableModel };
 
 const BLOCK_TAGS = new Set([
   'p', 'ul', 'ol', 'li', 'blockquote',
@@ -42,9 +54,64 @@ function inlineToSegs(node: RenderNode, style: { bold?: boolean; italic?: boolea
   }
 }
 
+// 从 markdown-it 的 td/th attrs 里解析对齐方式（style="text-align:center" 等）。
+function cellAlign(node: RenderNode): string {
+  const style = node.attrs?.style || '';
+  if (/text-align:\s*center/i.test(style)) return 'center';
+  if (/text-align:\s*right/i.test(style)) return 'right';
+  return 'left';
+}
+
+// 把一个 td/th 节点的行内内容拍平成带样式的文本段。
+function cellToSegs(cellNode: RenderNode): Seg[] {
+  const segs: Seg[] = [];
+  (cellNode.children || []).forEach(c => inlineToSegs(c, {}, segs));
+  return segs;
+}
+
+// 把一个 table 节点（含 thead/tbody/tr/th/td 树）拍平成二维 TableModel。
+// 这样表格可以在单个组件模板里用 display:table 一次性渲染，列宽自动对齐；
+// 避免逐层递归子组件时多包一层 wrapper 破坏 table 父子结构。
+function flattenTable(tableNode: RenderNode): TableModel {
+  const head: TableCell[] = [];
+  const rows: TableCell[][] = [];
+
+  const walkRow = (trNode: RenderNode): TableCell[] => {
+    const cells: TableCell[] = [];
+    (trNode.children || []).forEach(cell => {
+      if (cell.tag === 'th' || cell.tag === 'td') {
+        cells.push({ segs: cellToSegs(cell), align: cellAlign(cell) });
+      }
+    });
+    return cells;
+  };
+
+  const walkSection = (section: RenderNode, isHead: boolean) => {
+    (section.children || []).forEach(tr => {
+      if (tr.tag !== 'tr') return;
+      const cells = walkRow(tr);
+      if (isHead && head.length === 0) head.push(...cells);
+      else rows.push(cells);
+    });
+  };
+
+  (tableNode.children || []).forEach(child => {
+    if (child.tag === 'thead') walkSection(child, true);
+    else if (child.tag === 'tbody') walkSection(child, false);
+    else if (child.tag === 'tr') {
+      // 少数情况下 tr 直接挂在 table 下：第一行当表头
+      const cells = walkRow(child);
+      if (head.length === 0) head.push(...cells);
+      else rows.push(cells);
+    }
+  });
+
+  return { head, rows };
+}
+
 // 把一层 nodes 归并成渲染单元：连续的行内节点合并成一个 text 单元，
-// 块级节点/图片各自独立。关键：行内内容全程扁平化为兄弟 <text>，
-// 绝不在 <text> 内嵌套子组件（uni-text 会丢弃组件子节点，导致内容被吞）。
+// 块级节点/图片各自独立，表格拍平成二维模型。关键：行内内容全程扁平化为
+// 兄弟 <text>，绝不在 <text> 内嵌套子组件（uni-text 会丢弃组件子节点，导致内容被吞）。
 function buildUnits(nodes: RenderNode[]): Unit[] {
   const units: Unit[] = [];
   let buf: Seg[] = [];
@@ -52,7 +119,10 @@ function buildUnits(nodes: RenderNode[]): Unit[] {
     if (buf.length) { units.push({ kind: 'text', segs: buf }); buf = []; }
   };
   for (const node of nodes) {
-    if (isBlockNode(node)) {
+    if (node.tag === 'table') {
+      flush();
+      units.push({ kind: 'table', table: flattenTable(node) });
+    } else if (isBlockNode(node)) {
       flush();
       units.push({ kind: 'block', node });
     } else if (node.type === 'image') {
@@ -192,6 +262,50 @@ export default defineComponent({
         mode="widthFix"
       />
 
+      <!-- ===== 表格：单组件内一次性构建完整 display:table 结构，列宽自动对齐 ===== -->
+      <view v-else-if="unit.kind === 'table'" class="md-table-scroll">
+        <view class="md-table">
+          <!-- 表头 -->
+          <view v-if="unit.table.head.length" class="md-thead">
+            <view class="md-tr">
+              <view
+                v-for="(cell, ci) in unit.table.head"
+                :key="'h' + ci"
+                class="md-th"
+                :style="{ textAlign: cell.align }"
+              >
+                <text
+                  v-for="(seg, si) in cell.segs"
+                  :key="si"
+                  :class="segClass(seg)"
+                >{{ seg.text }}</text>
+              </view>
+            </view>
+          </view>
+          <!-- 数据行 -->
+          <view class="md-tbody">
+            <view
+              v-for="(row, ri) in unit.table.rows"
+              :key="'r' + ri"
+              class="md-tr"
+            >
+              <view
+                v-for="(cell, ci) in row"
+                :key="'c' + ci"
+                class="md-td"
+                :style="{ textAlign: cell.align }"
+              >
+                <text
+                  v-for="(seg, si) in cell.segs"
+                  :key="si"
+                  :class="segClass(seg)"
+                >{{ seg.text }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
       <!-- ===== 块级节点 ===== -->
       <template v-else>
         <!-- 标题 h1-h6 -->
@@ -227,26 +341,6 @@ export default defineComponent({
 
         <!-- 引用 -->
         <view v-else-if="unit.node.tag === 'blockquote'" class="md-quote">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" :tail="isTailUnit(index)" />
-        </view>
-
-        <!-- 表格 -->
-        <view v-else-if="unit.node.tag === 'table'" class="md-table">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" :tail="isTailUnit(index)" />
-        </view>
-        <view v-else-if="unit.node.tag === 'thead'" class="md-thead">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" :tail="isTailUnit(index)" />
-        </view>
-        <view v-else-if="unit.node.tag === 'tbody'" class="md-tbody">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" :tail="isTailUnit(index)" />
-        </view>
-        <view v-else-if="unit.node.tag === 'tr'" class="md-tr">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" :tail="isTailUnit(index)" />
-        </view>
-        <view v-else-if="unit.node.tag === 'th'" class="md-th">
-          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" :tail="isTailUnit(index)" />
-        </view>
-        <view v-else-if="unit.node.tag === 'td'" class="md-td">
           <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" :animate="animate" :tail="isTailUnit(index)" />
         </view>
 
@@ -330,29 +424,73 @@ export default defineComponent({
   border-radius: 8rpx;
 }
 
+/* ===== 表格：display:table 真表格布局，列宽跨行自动对齐（对齐 lct-ai 方案） ===== */
+/* 外层滚动容器：内容超宽横向滚动，圆角外框 */
+.md-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: none;
+  -webkit-overflow-scrolling: touch;
+  border: 1rpx solid #dadada;
+  border-radius: 12rpx;
+  margin: 16rpx 0;
+}
+/* 真正的 table：内容撑开、最小占满容器，自动列宽 */
 .md-table {
-  display: flex;
-  flex-direction: column;
-  border: 1rpx solid #e5e6eb;
-  border-radius: 8rpx;
-  overflow: hidden;
-  margin: 12rpx 0;
+  width: max-content;
+  min-width: 100%;
+  display: table;
+  table-layout: auto;
 }
-.md-thead { background: #f2f3f5; }
+.md-thead {
+  display: table-header-group;
+}
+.md-tbody {
+  display: table-row-group;
+}
 .md-tr {
-  display: flex;
-  flex-direction: row;
-  border-bottom: 1rpx solid #e5e6eb;
+  display: table-row;
 }
+/* 单元格：用 box-shadow inset 画内部分隔线，规避小程序 border-collapse 兼容问题 */
 .md-th, .md-td {
-  flex: 1;
-  padding: 12rpx 14rpx;
+  display: table-cell;
+  padding: 16rpx 20rpx;
   font-size: 26rpx;
   line-height: 1.5;
-  border-right: 1rpx solid #e5e6eb;
+  vertical-align: middle;
+  word-break: break-word;
+  box-shadow: inset -1rpx 0 0 0 #e0e0e0, inset 0 -1rpx 0 0 #e0e0e0;
 }
-.md-th { font-weight: 600; color: #1a1a1a; }
-.md-td { color: #333; }
+/* 表头：灰底、稍深分隔线 */
+.md-th {
+  font-weight: 600;
+  color: #1a1a1a;
+  background: #eef0f3;
+  white-space: nowrap;
+  box-shadow: inset -1rpx 0 0 0 #cecece, inset 0 -1rpx 0 0 #cecece;
+}
+.md-td {
+  color: #333;
+  background: #ffffff;
+}
+/* 最后一列不画右分隔线；最后一行不画下分隔线，避免与外框重叠 */
+.md-th:last-child, .md-td:last-child {
+  box-shadow: inset 0 -1rpx 0 0 #e0e0e0;
+}
+.md-th:last-child {
+  box-shadow: inset 0 -1rpx 0 0 #cecece;
+}
+.md-tbody .md-tr:last-child .md-td {
+  box-shadow: inset -1rpx 0 0 0 #e0e0e0;
+}
+.md-tbody .md-tr:last-child .md-td:last-child {
+  box-shadow: none;
+}
+/* 空单元格用 &nbsp; 撑出高度 */
+.md-td:empty::after {
+  content: '\00a0';
+}
 
 .md-strong { font-weight: 600; color: #1a1a1a; }
 .md-em { font-style: italic; }
