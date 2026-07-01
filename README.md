@@ -4,7 +4,6 @@
 
 技术栈与目标业务项目（`lct-ai`）保持一致：**uni-app + Vue 3 + TypeScript + Sass**，可编译到**微信小程序 (mp-weixin)** 与 **H5** 双端，从而在相同环境下真实复现小程序端的渲染抖动，并对比多种优化方案的效果。
 
-<img src="./docs/reference-design.png" width="820" />
 
 ---
 
