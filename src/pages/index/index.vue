@@ -1,5 +1,5 @@
 <script lang="ts">
-import { defineComponent, ref, reactive, nextTick } from 'vue';
+import { defineComponent, ref, reactive, nextTick, computed } from 'vue';
 import { useStreamSim } from '@/composables/useStreamSim';
 
 interface ChatMsg {
@@ -8,25 +8,6 @@ interface ChatMsg {
   content: string;
   streaming: boolean;
 }
-
-const DEFAULT_REPLY = `你好！我可以帮你分析这个问题。下面是我的建议：
-
-### 一、核心思路
-
-1. **先明确目标** —— 想清楚要**真正**解决什么。
-2. 拆解步骤，把大问题拆成 *若干小块*。
-3. 逐步验证，用 \`npm run build\` 每步都跑通。
-4. 过期的 ~~旧方案~~ 直接淘汰，参考[官方文档](https://uniapp.dcloud.net.cn)。
-
-### 二、示例代码
-
-\`\`\`js
-function hello(name) {
-  return 'Hello, ' + name;
-}
-\`\`\`
-
-希望这些对你有帮助，如需**更详细的方案**可以继续追问～`;
 
 export default defineComponent({
   name: 'IndexPage',
@@ -53,10 +34,11 @@ export default defineComponent({
     } catch (e) {}
 
     // ===== 设置 =====
-    const replyText = ref(DEFAULT_REPLY);
     const settingsOpen = ref(true);
     // 流式消歧开关：消除 ** ` ~~ 链接等特殊符号在逐字流式中的闪现
     const sanitizeStream = ref(true);
+    // 是否展示后端思考过程(reasoning_content)
+    const showReason = ref(false);
 
     // ===== 对话 =====
     const messages = reactive<ChatMsg[]>([]);
@@ -118,13 +100,13 @@ export default defineComponent({
       messages.push({ id: 'u' + Date.now(), role: 'user', content: text, streaming: false });
       inputText.value = '';
 
-      // 新建一条空的 AI 消息，随后流式填充
+      // 新建一条空的 AI 消息，随后由真实后端流式填充
       aiSeq += 1;
       messages.push({ id: 'a' + Date.now(), role: 'ai', content: '', streaming: true });
 
       scrollToBottom();
-      // 只输出正文（无思考过程）
-      sim.start('', replyText.value);
+      // 走真实后端 SSE：把问题发给后端，回复内容来自后端报文文件
+      sim.start(text);
     }
 
     function clearChat() {
@@ -136,11 +118,21 @@ export default defineComponent({
       settingsOpen.value = !settingsOpen.value;
     }
 
+    const backendStatusText = computed(() => {
+      if (state.errorMsg) return '连接失败';
+      if (state.connecting) return '连接中…';
+      if (state.stalling) return '停顿中…';
+      if (state.isThinkingPhase && state.isStreaming) return '思考中…';
+      if (state.isStreaming) return '推送中';
+      return '空闲';
+    });
+
     return {
       state, cfg,
       statusBarHeight, navRowHeight, navRightGap,
-      replyText, settingsOpen, sanitizeStream,
+      settingsOpen, sanitizeStream, showReason,
       messages, inputText, scrollIntoView,
+      backendStatusText,
       send, clearChat, toggleSettings,
     };
   },
@@ -168,6 +160,11 @@ export default defineComponent({
       </view>
 
       <view v-if="settingsOpen" class="settings-body">
+        <view class="field field-full">
+          <text class="field-label">后端接口地址（先运行 npm run mock 启动本地服务）</text>
+          <input class="field-input" type="text" v-model="cfg.serverUrl" placeholder="http://127.0.0.1:7788/v1/chat/completions" />
+        </view>
+
         <view class="field-row">
           <view class="field">
             <text class="field-label">打字速度 (字/秒)</text>
@@ -177,27 +174,6 @@ export default defineComponent({
             <text class="field-label">每帧字符数</text>
             <input class="field-input" type="number" v-model.number="cfg.charsPerTick" />
           </view>
-          <view class="field">
-            <text class="field-label">后端到达间隔 (ms)</text>
-            <input class="field-input" type="number" v-model.number="cfg.producerDelayMs" />
-          </view>
-        </view>
-
-        <!-- 后端投递模型：还原真实 chunk 卡顿 vs 平滑 -->
-        <view class="seg-row">
-          <text class="seg-title">后端投递模型</text>
-          <view class="seg">
-            <text
-              class="seg-btn"
-              :class="{ active: cfg.producerMode === 'realistic' }"
-              @click="cfg.producerMode = 'realistic'"
-            >真实卡顿</text>
-            <text
-              class="seg-btn"
-              :class="{ active: cfg.producerMode === 'smooth' }"
-              @click="cfg.producerMode = 'smooth'"
-            >平滑</text>
-          </view>
         </view>
 
         <view class="switch-row">
@@ -206,12 +182,12 @@ export default defineComponent({
             <switch :checked="sanitizeStream" @change="(e:any)=>sanitizeStream=e.detail.value" color="#3a7afe" style="transform:scale(0.8)" />
           </view>
           <view class="switch-item">
-            <text class="switch-label">后端随机抖动</text>
-            <switch :checked="cfg.randomDelay" @change="(e:any)=>cfg.randomDelay=e.detail.value" color="#3a7afe" style="transform:scale(0.8)" />
-          </view>
-          <view class="switch-item">
             <text class="switch-label">积压自动追赶</text>
             <switch :checked="cfg.catchUp" @change="(e:any)=>cfg.catchUp=e.detail.value" color="#3a7afe" style="transform:scale(0.8)" />
+          </view>
+          <view class="switch-item">
+            <text class="switch-label">展示思考过程</text>
+            <switch :checked="showReason" @change="(e:any)=>showReason=e.detail.value" color="#3a7afe" style="transform:scale(0.8)" />
           </view>
         </view>
 
@@ -226,13 +202,12 @@ export default defineComponent({
           </view>
           <view class="switch-item buffer-tip">
             <text class="switch-label">后端状态</text>
-            <text class="buffer-num" :class="{ stalling: state.stalling }">{{ state.stalling ? '停顿中…' : (state.isStreaming ? '推送中' : '空闲') }}</text>
+            <text class="buffer-num" :class="{ stalling: state.stalling || !!state.errorMsg }">{{ backendStatusText }}</text>
           </view>
         </view>
 
-        <view class="field field-full">
-          <text class="field-label">模拟回复内容（发送后会流式返回这段内容）</text>
-          <textarea class="field-textarea" v-model="replyText" :maxlength="-1" placeholder="输入 AI 要返回的内容，支持 Markdown..." />
+        <view v-if="state.errorMsg" class="err-tip">
+          <text class="err-text">连接失败：{{ state.errorMsg }}</text>
         </view>
       </view>
     </view>
@@ -256,7 +231,18 @@ export default defineComponent({
           </view>
           <!-- AI -->
           <view v-else class="bubble ai-bubble">
+            <!-- 后端思考过程（可选展示） -->
+            <view v-if="msg.streaming && showReason && state.reasonContent" class="reason-box">
+              <text class="reason-title">思考过程</text>
+              <text class="reason-text">{{ state.reasonContent }}</text>
+            </view>
+            <!-- 思考中占位：连接后到第一个正文 delta 之间 -->
+            <view v-if="msg.streaming && !msg.content && (state.connecting || state.isThinkingPhase)" class="thinking">
+              <text class="thinking-dot">●</text>
+              <text class="thinking-text">{{ state.connecting ? '连接后端…' : '思考中…' }}</text>
+            </view>
             <c-markdown
+              v-if="msg.content"
               :content="msg.content"
               :show-cursor="msg.streaming"
               :sanitize-stream="sanitizeStream"
@@ -379,6 +365,62 @@ export default defineComponent({
 }
 .buffer-num.stalling {
   color: #f5222d;
+}
+
+/* 错误提示 */
+.err-tip {
+  margin-top: 4rpx;
+  padding: 12rpx 16rpx;
+  background: #fff1f0;
+  border: 1rpx solid #ffccc7;
+  border-radius: 12rpx;
+}
+.err-text {
+  font-size: 22rpx;
+  color: #f5222d;
+  line-height: 1.5;
+}
+
+/* 思考中占位 */
+.thinking {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10rpx;
+}
+.thinking-dot {
+  font-size: 20rpx;
+  color: #3a7afe;
+  animation: blink 1s infinite;
+}
+.thinking-text {
+  font-size: 26rpx;
+  color: #86909c;
+}
+@keyframes blink {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+/* 思考过程 */
+.reason-box {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16rpx;
+  padding: 14rpx 18rpx;
+  background: #f7f8fa;
+  border-left: 4rpx solid #c9cdd4;
+  border-radius: 8rpx;
+}
+.reason-title {
+  font-size: 22rpx;
+  color: #86909c;
+  margin-bottom: 6rpx;
+}
+.reason-text {
+  font-size: 24rpx;
+  color: #6b7280;
+  line-height: 1.6;
 }
 
 /* 分段选择器：后端投递模型 */

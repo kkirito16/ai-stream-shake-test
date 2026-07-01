@@ -1,0 +1,235 @@
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"role":"assistant"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"用户"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"想了解"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"AI "},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"问答"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"里"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"流式"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"打字机"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"效果"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"的"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"实现"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"思路"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"。"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"我"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"需要"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"从"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"「"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"后端"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"按 chunk "},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"推送"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"」"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"和"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"「"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"前端"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"逐字"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"上屏"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"」"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"两个"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"角度"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"来"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"解释"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"，"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"并"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"说明"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"卡顿"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"的"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"来源"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"reasoning_content":"。"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"#"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"# 流式打"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"字"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"机效果实"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"现"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"要"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"点\n\n"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"在 "},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"AI 问答"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"场景里，**丝滑的逐字"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"上屏**并"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"不是简单地把后端返回"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"拼接"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"显示，而是要处理好三件事。\n\n### 一、后端按 chu"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"n"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"k "},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"推送"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"\n\n后端"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"通"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"常以 SSE"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"（"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"`data: {...}`）逐块下发"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"，"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"每个 chunk 的内容大小很不均匀："},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"\n"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"\n1."},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":" "},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"有大量 **1~2 个"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"字**的小包；"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"\n2. 偶尔一次吐出一整段（burst）"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"；\n3. 中间还夹着"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"思考"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"、调"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"用工具的**停"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"顿期"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"*"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"*"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"，"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"此"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"时"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"正文完全不动。\n\n> 这种「粒度不均 + 停顿」正是卡"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"顿"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"感的真正来源。\n\n### 二、前端逐字上屏\n\n前"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"端不"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"应"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"该"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"「"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"来"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"多"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"少显"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"示多"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"少"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"」"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"，而应把"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"到达的内容先"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"放进缓冲区，再"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"由"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"一个稳"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"定的节拍器按 *固定速度"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"* 逐字取出上"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"屏。"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"这样做的好处是：\n\n"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"- 后"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"端"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"瞬间返回"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"一大段，也会被缓冲区拦住"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"、匀"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"速放出；\n"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"- 后端卡"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"顿时"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"，缓冲"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"区里还有存货可以继续吐，屏幕不会停。\n\n###"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":" 三"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"、渲染层优化\n\n配合增量解析与节流滚动，就能得到稳定、无抖动的"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"打字机效果。整体思路是把「产出」与「上屏」彻底解耦"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"，让体验只"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{"content":"由前端节奏决定。"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-sample000000000000000000000000","object":"chat.completion.chunk","created":1782207956,"model":"mock-llm","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+data: [DONE]

@@ -21,3 +21,6 @@ unpackage/
 
 # uni-app
 src/manifest.json.bak
+
+# 本地自备的真实 SSE 报文（含敏感内部数据，不进仓库；缺失时后端自动回落到 stream-sample.text）
+src/mock/stream-real.text

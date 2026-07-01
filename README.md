@@ -31,12 +31,15 @@
 
 一个极简的**移动端竖屏**测试界面：顶部是**参数设置区**，下方是**对话区**（发任意消息，AI 就把设定好的内容流式逐字返回）。底层流式链路（`markdownParser.ts` / `c-token-render.vue` / `useStreamSim.ts`）刻意还原了上述「全量累积 + 重解析 + 递归重渲染」的实现，因此能真实复现抖动，也便于验证优化的收益。
 
-### 核心思路：生产者–消费者匀速打字机
+### 数据来源：真实后端 mock SSE 服务
 
-**把「后端产出」与「前端上屏」解耦**，一次性解决「太快 / 非逐字 / 卡顿」三个问题：
+本项目**不再用前端猜测 chunk 分布**，而是**复刻 lct-ai 的 `mock-stream-completions-trpc-agent.mjs` 方式，启动一个真实的后端 HTTP 服务**（`scripts/mock-stream-server.mjs`），按 SSE 逐条 `data: {...}` 推送、末尾补 `data: [DONE]`。前端走**真实网络流式接收**，从而完整还原后端场景（含空包、1~2 字小包、burst、思考/工具调用停顿期）。
 
 ```text
-[生产者] 模拟后端 SSE，按 chunk + 延迟投递  →  进入「缓冲区」
+[后端] mock-stream-server.mjs 读取真实/脱敏 SSE 报文，setInterval 逐条 res.write
+                            │  (真实网络 SSE：H5 fetch+ReadableStream / 小程序 uni.request enableChunked)
+                            ▼
+[生产者] sseClient 按帧解析 delta.content 追加进「缓冲区」
                             │
                        (缓冲区削峰填谷)
                             │
@@ -44,6 +47,12 @@
                             │
 [渲染]   增量解析(仅重解析末块) + 节流滚动
 ```
+
+数据源优先级（`scripts/mock-stream-server.mjs` 自动回落）：`--file 指定` > `src/mock/stream-real.text`（**真实报文，已 gitignore，本地自备**）> `src/mock/stream-sample.text`（**脱敏示例，随仓库提交**，由 `scripts/gen-sample-stream.mjs` 生成，粒度不均、结构对齐真实报文）。
+
+### 核心思路：生产者–消费者匀速打字机
+
+**把「后端产出」与「前端上屏」解耦**，一次性解决「太快 / 非逐字 / 卡顿」三个问题：生产者是真实后端 SSE（`delta.content` 持续追加进缓冲区），消费者是前端打字机（以字/秒匀速逐字取字上屏）。
 
 - **解决「太快」**：上屏速度由**打字速度**（字/秒）决定，与后端返回速度无关。后端瞬间吐完也会被缓冲区拦住、匀速上屏。
 - **解决「非逐字」**：消费端默认每帧 1 字，形成真正的逐字打字机，而不是「一段段蹦」。
@@ -54,12 +63,12 @@
 
 ### 还原真实卡顿
 
-真实后端并非「均匀吐字」，而是**按 SSE 报文 (chunk) 推送**，且每个 chunk 的 `delta.content` 大小极不均匀：既有空包，也有大量 1~2 字小包，偶发一整段 burst；正文中间还会因模型思考 / 调用工具 / 网络波动出现**长停顿**。「chunk 大小不均 + 停顿期」才是卡顿的真正来源。
+真实后端并非「均匀吐字」，而是**按 SSE 报文 (chunk) 推送**，且每个 chunk 的 `delta.content` 大小极不均匀：既有空包，也有大量 1~2 字小包，偶发一整段 burst；正文中间还会因模型思考（`reasoning_content`）/ 调用工具（`tool_calls` / `tool_responses`）/ 网络波动出现**长停顿**。「chunk 大小不均 + 停顿期」才是卡顿的真正来源。
 
-为此生产者提供两种投递模型：
+由于卡顿完全由**真实报文的原始 chunk 分布**驱动，前端无需再模拟 chunk 大小 / 到达间隔 / 随机抖动。想还原不同后端节奏，只需：
 
-- **`realistic`（真实卡顿）**：按加权分布产出 chunk（小包为主 + 偶发 burst），到达间隔带较大抖动，并按概率插入 300~1200ms 长停顿；界面会实时提示「后端停顿中」。
-- **`smooth`（平滑）**：固定随机 3~12 字 + 平滑延迟，作为对照。
+- 替换数据源（本地放一份 `src/mock/stream-real.text` 即可用真实报文），或
+- 调整后端投递间隔：`npm run mock` 默认 `--interval 60`（毫秒/条），改小更快、改大更慢。
 
 再配合**绕过缓冲**开关，可以直观对比两种上屏方式：
 
@@ -83,14 +92,15 @@
 
 | 参数 | 作用 |
 | --- | --- |
+| **后端接口地址** | mock SSE 服务地址（默认 `http://127.0.0.1:7788/v1/chat/completions`），前端向此地址发起真实流式请求 |
 | **打字速度（字/秒）** | 主控快慢。想看清逐字效果就调小（如 20~30），想快就调大（如 80） |
 | **每帧字符数** | 每次上屏字数，`1` 最丝滑；调大更省性能但略跳 |
-| **后端到达间隔（ms）** | 模拟后端 SSE 分块到达速度，体现缓冲区削峰能力 |
-| **后端投递模型** | `realistic` 还原真实卡顿 / `smooth` 平滑对照 |
-| **后端随机抖动** | 到达间隔叠加随机波动，更贴近真实 SSE |
+| **流式消歧** | 末尾未闭合 Markdown/HTML 标记乐观处理，避免符号闪现 |
 | **积压自动追赶** | 缓冲积压超过阈值时单帧多吃一点，防长文拖太久 |
+| **展示思考过程** | 显示后端 `reasoning_content`（模型思考）内容 |
 | **绕过缓冲** | 不经匀速削峰、尽快逐字吐出，还原后端原始卡顿节奏 |
 | **缓冲积压** | 实时显示缓冲区里「已到达但还没上屏」的字数 |
+| **后端状态** | 实时显示连接中 / 推送中 / 停顿中 / 思考中 / 空闲 / 连接失败 |
 
 ---
 
@@ -98,8 +108,8 @@
 
 竖屏从上到下三块：
 
-- **① 设置区（可折叠）**：数字输入（打字速度 / 每帧字符数 / 后端到达间隔）+ 开关（投递模型 / 随机抖动 / 积压追赶 / 绕过缓冲）+ 缓冲积压与后端状态实时显示 + 模拟回复内容文本框。
-- **② 对话区**：用户消息靠右（蓝色气泡），AI 回复靠左（白色气泡），流式逐字上屏。
+- **① 设置区（可折叠）**：后端接口地址输入框 + 数字输入（打字速度 / 每帧字符数）+ 开关（流式消歧 / 积压追赶 / 展示思考过程 / 绕过缓冲）+ 缓冲积压与后端状态实时显示。
+- **② 对话区**：用户消息靠右（蓝色气泡），AI 回复靠左（白色气泡），流式逐字上屏；思考阶段显示「思考中」占位，可选展开「思考过程」。
 - **③ 输入栏**：输入框 + 发送键，回车也能发；输出中时发送键禁用。
 
 ---
@@ -110,6 +120,12 @@
 # 安装依赖
 npm install
 
+# ① 先启动后端 mock SSE 服务（默认 http://127.0.0.1:7788，每 60ms 推一条）
+npm run mock
+#   可选参数：--port 7788 --interval 60 --file 指定 SSE 报文文件
+#   数据源自动回落：--file > src/mock/stream-real.text(真实,gitignore) > src/mock/stream-sample.text(脱敏示例)
+
+# ② 再启动前端（前端向后端接口地址发起真实 SSE 流式请求）
 # H5 开发预览
 npm run dev:h5
 
@@ -119,23 +135,35 @@ npm run dev:mp-weixin
 # 构建
 npm run build:h5
 npm run build:mp-weixin
+
+# 重新生成脱敏示例数据（可选）
+npm run gen:sample
 ```
 
-> 微信小程序端才能真实复现小程序 WebView 的渲染抖动；H5 用于快速预览与逻辑验证。
+> - 微信小程序端才能真实复现小程序 WebView 的渲染抖动；H5 用于快速预览与逻辑验证。
+> - **真实报文含内部敏感数据，不入仓库**：把你自己的报文放到 `src/mock/stream-real.text`（已 gitignore），服务会自动优先使用；仓库内仅提供脱敏示例 `stream-sample.text`。
+> - 小程序需在真实网络请求下工作，项目已配置 `urlCheck: false`（开发时免手动勾选合法域名）；H5 用 `fetch + ReadableStream`，小程序用 `uni.request enableChunked`，由条件编译自动切换。
 
 ---
 
 ## 五、目录结构
 
 ```text
+scripts/
+├── mock-stream-server.mjs   # 后端 mock SSE 服务（复刻 lct-ai），逐条投递 data:{...} + [DONE]
+└── gen-sample-stream.mjs     # 生成脱敏示例 SSE 报文 stream-sample.text
 src/
 ├── components/
 │   ├── c-markdown/          # markdown 渲染入口，按策略切换解析方式
 │   ├── c-token-render/      # 递归渲染自定义 token 树（原生 view/text）
 │   └── c-chat-bubble/       # AI 气泡 + 高度测量（抖动指标）
+├── mock/
+│   ├── stream-sample.text   # 脱敏示例 SSE 报文（随仓库提交）
+│   └── stream-real.text     # 真实 SSE 报文（本地自备，已 gitignore）
 ├── composables/
-│   └── useStreamSim.ts      # 生产者-消费者流式模型：模拟 SSE 投递缓冲区 + 匀速打字机消费
+│   └── useStreamSim.ts      # 生产者-消费者流式模型：真实后端 SSE 进缓冲区 + 匀速打字机消费
 ├── helpers/
+│   ├── sseClient.ts             # 跨端 SSE 客户端（H5 fetch / 小程序 enableChunked，条件编译）
 │   ├── markdownParser.ts        # markdown-it 全量解析 + token 树构建
 │   ├── incrementalParser.ts     # 增量解析 + 稳定 key（优化策略）
 │   ├── streamMarkdownSanitizer.ts # 流式 Markdown 消歧（末尾未闭合标记乐观处理）
