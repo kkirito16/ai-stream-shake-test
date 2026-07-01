@@ -212,31 +212,43 @@ export default defineComponent({
 
         <view class="switch-row">
           <view class="switch-item">
-            <text class="switch-label">流式消歧(隐藏**符号)</text>
-            <switch :checked="sanitizeStream" @change="(e:any)=>sanitizeStream=e.detail.value" color="#3a7afe" style="transform:scale(0.8)" />
+            <view class="switch-head">
+              <text class="switch-label">流式消歧</text>
+              <switch :checked="sanitizeStream" @change="(e:any)=>sanitizeStream=e.detail.value" color="#3a7afe" style="transform:scale(0.72)" />
+            </view>
+            <text class="switch-hint">隐藏 ** 等标记</text>
           </view>
           <view class="switch-item">
-            <text class="switch-label">积压自动追赶</text>
-            <switch :checked="cfg.catchUp" @change="(e:any)=>cfg.catchUp=e.detail.value" color="#3a7afe" style="transform:scale(0.8)" />
+            <view class="switch-head">
+              <text class="switch-label">积压追赶</text>
+              <switch :checked="cfg.catchUp" @change="(e:any)=>cfg.catchUp=e.detail.value" color="#3a7afe" style="transform:scale(0.72)" />
+            </view>
+            <text class="switch-hint">积压时加速</text>
           </view>
           <view class="switch-item">
-            <text class="switch-label">展示思考过程</text>
-            <switch :checked="showReason" @change="(e:any)=>showReason=e.detail.value" color="#3a7afe" style="transform:scale(0.8)" />
+            <view class="switch-head">
+              <text class="switch-label">思考过程</text>
+              <switch :checked="showReason" @change="(e:any)=>showReason=e.detail.value" color="#3a7afe" style="transform:scale(0.72)" />
+            </view>
+            <text class="switch-hint">展示推理内容</text>
           </view>
         </view>
 
         <view class="switch-row">
           <view class="switch-item">
-            <text class="switch-label">绕过缓冲(原始卡顿)</text>
-            <switch :checked="cfg.bypassBuffer" @change="(e:any)=>cfg.bypassBuffer=e.detail.value" color="#f5222d" style="transform:scale(0.8)" />
+            <view class="switch-head">
+              <text class="switch-label">绕过缓冲</text>
+              <switch :checked="cfg.bypassBuffer" @change="(e:any)=>cfg.bypassBuffer=e.detail.value" color="#f5222d" style="transform:scale(0.72)" />
+            </view>
+            <text class="switch-hint">还原原始卡顿</text>
           </view>
-          <view class="switch-item buffer-tip">
+          <view class="switch-item stat-item">
             <text class="switch-label">缓冲积压</text>
-            <text class="buffer-num">{{ state.bufferedChars }} 字</text>
+            <text class="stat-num">{{ state.bufferedChars }} <text class="stat-unit">字</text></text>
           </view>
-          <view class="switch-item buffer-tip">
+          <view class="switch-item stat-item">
             <text class="switch-label">后端状态</text>
-            <text class="buffer-num" :class="{ stalling: state.stalling || !!state.errorMsg }">{{ backendStatusText }}</text>
+            <text class="stat-num" :class="{ stalling: state.stalling || !!state.errorMsg }">{{ backendStatusText }}</text>
           </view>
         </view>
 
@@ -382,33 +394,69 @@ export default defineComponent({
 .switch-row {
   display: flex;
   flex-direction: row;
-  align-items: center;
-  gap: 12rpx;
-  margin-bottom: 20rpx;
+  align-items: stretch;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
 }
 .switch-item {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  justify-content: center;
   background: #f7f8fa;
-  border-radius: 12rpx;
-  padding: 10rpx 16rpx;
+  border: 1rpx solid #eef0f3;
+  border-radius: 14rpx;
+  padding: 16rpx 18rpx;
+  box-sizing: border-box;
+}
+.switch-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 40rpx;
 }
 .switch-label {
-  font-size: 22rpx;
+  font-size: 25rpx;
+  font-weight: 500;
+  color: #1a1a1a;
+  white-space: nowrap;
+}
+.switch-head .switch {
+  margin-right: -8rpx;
+}
+.switch-hint {
+  font-size: 20rpx;
+  color: #a3a8b3;
+  margin-top: 6rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 统计类卡片（缓冲积压 / 后端状态） */
+.stat-item {
+  justify-content: center;
+}
+.stat-item .switch-label {
   color: #86909c;
-  margin-bottom: 4rpx;
+  font-weight: 400;
+  font-size: 22rpx;
+  margin-bottom: 8rpx;
 }
-.buffer-tip {
-  align-items: flex-start;
-}
-.buffer-num {
-  font-size: 28rpx;
-  font-weight: 600;
+.stat-num {
+  font-size: 30rpx;
+  font-weight: 700;
   color: #3a7afe;
+  line-height: 1.1;
 }
-.buffer-num.stalling {
+.stat-unit {
+  font-size: 22rpx;
+  font-weight: 500;
+  color: #86909c;
+}
+.stat-num.stalling {
   color: #f5222d;
 }
 
