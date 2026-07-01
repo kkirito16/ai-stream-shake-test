@@ -25,6 +25,7 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { fileURLToPath } from 'url';
 
 const currentFilename = fileURLToPath(import.meta.url);
@@ -191,12 +192,30 @@ const server = http.createServer(async (req, res) => {
   sendMockStream(res, chunks, intervalMs);
 });
 
-server.listen(port, '127.0.0.1', () => {
+/** 枚举本机局域网 IPv4 地址（供手机等同网段设备访问） */
+function getLanIPs() {
+  const nets = os.networkInterfaces();
+  const ips = [];
+  for (const name of Object.keys(nets)) {
+    for (const ni of nets[name] || []) {
+      if (ni.family === 'IPv4' && !ni.internal) ips.push(ni.address);
+    }
+  }
+  return ips;
+}
+
+server.listen(port, '0.0.0.0', () => {
   const dataFile = resolveDataFile(file);
   const rel = path.relative(process.cwd(), dataFile);
   const usingReal = dataFile === REAL_FILE;
+  const lanIPs = getLanIPs();
+  const lanLines = lanIPs.length
+    ? lanIPs.map((ip) => `  手机/局域网: http://${ip}:${port}${COMPLETIONS_PATH}`).join('\n')
+    : '  (未检测到局域网 IP，请确认已连接 Wi-Fi/网线)';
   console.log(
-    `[mock-stream-server] listening http://127.0.0.1:${port}\n`
+    `[mock-stream-server] listening 0.0.0.0:${port}\n`
+    + `  本机:        http://127.0.0.1:${port}${COMPLETIONS_PATH}\n`
+    + `${lanLines}\n`
     + `  POST ${COMPLETIONS_PATH}\n`
     + `  数据源: ${rel} ${usingReal ? '(本地真实报文)' : '(脱敏示例)'}\n`
     + `  interval=${intervalMs}ms`,
