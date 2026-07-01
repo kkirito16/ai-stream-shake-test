@@ -1,9 +1,73 @@
 <script lang="ts">
-import { defineComponent, PropType } from 'vue';
+import { defineComponent, PropType, computed } from 'vue';
 import type { RenderNode } from '@/helpers/markdownParser';
 
-// 递归渲染自定义 token 树，忠实复刻真实项目 c-token-render：
-// 使用原生 view/text 逐节点渲染（非 rich-text / mp-html）。
+// 行内文本段：一段带样式标记的纯文本。
+interface Seg {
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+  code?: boolean;
+  link?: boolean;
+  href?: string;
+}
+// 渲染单元：块级节点 / 行内文本段序列 / 图片。
+type Unit =
+  | { kind: 'block'; node: RenderNode }
+  | { kind: 'text'; segs: Seg[] }
+  | { kind: 'image'; src?: string; alt?: string };
+
+const BLOCK_TAGS = new Set([
+  'p', 'ul', 'ol', 'li', 'blockquote',
+  'table', 'thead', 'tbody', 'tr', 'th', 'td', 'hr', 'fence',
+]);
+
+function isBlockNode(node: RenderNode): boolean {
+  if (!node.tag) return false;
+  return BLOCK_TAGS.has(node.tag) || /^h[1-6]$/.test(node.tag);
+}
+
+// 把一个行内节点递归展开为带样式的文本段（strong/em 只影响样式，不产生嵌套结构）。
+function inlineToSegs(node: RenderNode, style: { bold?: boolean; italic?: boolean }, out: Seg[]) {
+  if (node.type === 'text') {
+    out.push({ text: node.content || '', ...style });
+  } else if (node.tag === 'strong') {
+    (node.children || []).forEach(c => inlineToSegs(c, { ...style, bold: true }, out));
+  } else if (node.tag === 'em') {
+    (node.children || []).forEach(c => inlineToSegs(c, { ...style, italic: true }, out));
+  } else if (node.type === 'code_inline') {
+    out.push({ text: node.content || '', code: true, ...style });
+  } else if (node.type === 'link') {
+    out.push({ text: node.content || '', link: true, href: node.href, ...style });
+  }
+}
+
+// 把一层 nodes 归并成渲染单元：连续的行内节点合并成一个 text 单元，
+// 块级节点/图片各自独立。关键：行内内容全程扁平化为兄弟 <text>，
+// 绝不在 <text> 内嵌套子组件（uni-text 会丢弃组件子节点，导致内容被吞）。
+function buildUnits(nodes: RenderNode[]): Unit[] {
+  const units: Unit[] = [];
+  let buf: Seg[] = [];
+  const flush = () => {
+    if (buf.length) { units.push({ kind: 'text', segs: buf }); buf = []; }
+  };
+  for (const node of nodes) {
+    if (isBlockNode(node)) {
+      flush();
+      units.push({ kind: 'block', node });
+    } else if (node.type === 'image') {
+      flush();
+      units.push({ kind: 'image', src: node.src, alt: node.alt });
+    } else {
+      inlineToSegs(node, {}, buf);
+    }
+  }
+  flush();
+  return units;
+}
+
+// 递归渲染自定义 token 树。块级节点递归子组件（根为 view，安全）；
+// 行内内容一律扁平化为带样式的 <text> 段，杜绝 <text> 内嵌组件被吞。
 export default defineComponent({
   name: 'c-token-render',
   props: {
@@ -20,145 +84,128 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-    // 行内模式：根元素用 <text> 而非 <view>。
-    // 微信小程序中 <view> 嵌在 <text> 内其文字不会渲染，
-    // 因此 strong/em 等行内节点的子树必须以 <text> 为根，否则内容被吞。
-    inline: {
-      type: Boolean,
-      default: false,
-    },
+  },
+  setup(props) {
+    const units = computed<Unit[]>(() => buildUnits(props.nodes || []));
+    return { units };
   },
   methods: {
-    nodeKey(node: RenderNode, index: number): string {
-      if (this.stableKey && node._k) return node._k;
-      return String(index);
+    unitKey(unit: Unit, index: number): string {
+      if (this.stableKey && unit.kind === 'block' && unit.node._k) return unit.node._k;
+      return `${unit.kind}-${index}`;
     },
-    isLastTextNode(index: number): boolean {
-      // 判断是否为末节点（用于挂光标）
-      return index === this.nodes.length - 1;
+    segClass(seg: Seg): string[] {
+      const c: string[] = ['md-seg'];
+      if (seg.bold) c.push('md-strong');
+      if (seg.italic) c.push('md-em');
+      if (seg.code) c.push('md-code-inline');
+      if (seg.link) c.push('md-link');
+      if (!seg.bold && !seg.italic && !seg.code && !seg.link) c.push('md-text');
+      return c;
+    },
+    // 光标：挂在最后一个块级段落之后
+    isLastCursorSpot(index: number): boolean {
+      if (!this.showCursor) return false;
+      const u = this.units[index];
+      if (!u || u.kind !== 'block' || u.node.tag !== 'p') return false;
+      // 之后没有其它块级/文本单元
+      for (let k = index + 1; k < this.units.length; k++) {
+        if (this.units[k].kind !== 'image') return false;
+      }
+      return true;
     },
   },
 });
 </script>
 
 <template>
-  <!-- 行内上下文用 <text> 作根（小程序 <text> 内只认文本/<text>）；块级用 <view> -->
-  <text v-if="inline" class="token-render-inline">
-    <block v-for="(node, index) in nodes" :key="nodeKey(node, index)">
-      <!-- 加粗（可嵌套） -->
-      <text v-if="node.tag === 'strong'" class="md-strong">
-        <c-token-render :nodes="node.children || []" :stable-key="stableKey" :inline="true" />
-      </text>
-      <!-- 斜体 -->
-      <text v-else-if="node.tag === 'em'" class="md-em">
-        <c-token-render :nodes="node.children || []" :stable-key="stableKey" :inline="true" />
-      </text>
-      <!-- 行内代码 -->
-      <text v-else-if="node.type === 'code_inline'" class="md-code-inline">{{ node.content }}</text>
-      <!-- 链接 -->
-      <text v-else-if="node.type === 'link'" class="md-link">{{ node.content }}</text>
-      <!-- 纯文本 -->
-      <text v-else-if="node.type === 'text'" class="md-text">{{ node.content }}</text>
-    </block>
-  </text>
-
-  <view v-else class="token-render">
-    <block v-for="(node, index) in nodes" :key="nodeKey(node, index)">
-      <!-- 标题 h1-h6 -->
-      <view
-        v-if="node.tag && /^h[1-6]$/.test(node.tag)"
-        :class="['md-heading', 'md-' + node.tag]"
-      >
-        <c-token-render :nodes="node.children || []" :stable-key="stableKey" />
-      </view>
-
-      <!-- 段落 -->
-      <view v-else-if="node.tag === 'p'" class="md-p">
-        <c-token-render :nodes="node.children || []" :stable-key="stableKey" />
+  <view class="token-render">
+    <block v-for="(unit, index) in units" :key="unitKey(unit, index)">
+      <!-- ===== 行内文本段：扁平的 <text> 兄弟，绝不嵌套子组件 ===== -->
+      <text v-if="unit.kind === 'text'" class="md-inline">
         <text
-          v-if="showCursor && isLastTextNode(index)"
-          class="cursor"
-        ></text>
-      </view>
-
-      <!-- 无序列表 -->
-      <view v-else-if="node.tag === 'ul'" class="md-ul">
-        <c-token-render :nodes="node.children || []" :stable-key="stableKey" />
-      </view>
-
-      <!-- 有序列表 -->
-      <view v-else-if="node.tag === 'ol'" class="md-ol">
-        <c-token-render :nodes="node.children || []" :stable-key="stableKey" />
-      </view>
-
-      <!-- 列表项 -->
-      <view v-else-if="node.tag === 'li'" class="md-li">
-        <text class="md-li-dot">•</text>
-        <view class="md-li-body">
-          <c-token-render :nodes="node.children || []" :stable-key="stableKey" />
-        </view>
-      </view>
-
-      <!-- 引用 -->
-      <view v-else-if="node.tag === 'blockquote'" class="md-quote">
-        <c-token-render :nodes="node.children || []" :stable-key="stableKey" />
-      </view>
-
-      <!-- 表格 -->
-      <view v-else-if="node.tag === 'table'" class="md-table">
-        <c-token-render :nodes="node.children || []" :stable-key="stableKey" />
-      </view>
-      <view v-else-if="node.tag === 'thead'" class="md-thead">
-        <c-token-render :nodes="node.children || []" :stable-key="stableKey" />
-      </view>
-      <view v-else-if="node.tag === 'tbody'" class="md-tbody">
-        <c-token-render :nodes="node.children || []" :stable-key="stableKey" />
-      </view>
-      <view v-else-if="node.tag === 'tr'" class="md-tr">
-        <c-token-render :nodes="node.children || []" :stable-key="stableKey" />
-      </view>
-      <view v-else-if="node.tag === 'th'" class="md-th">
-        <c-token-render :nodes="node.children || []" :stable-key="stableKey" />
-      </view>
-      <view v-else-if="node.tag === 'td'" class="md-td">
-        <c-token-render :nodes="node.children || []" :stable-key="stableKey" />
-      </view>
-
-      <!-- 加粗：子树必须以 inline(<text>) 为根，否则小程序内文字被吞 -->
-      <text v-else-if="node.tag === 'strong'" class="md-strong">
-        <c-token-render :nodes="node.children || []" :stable-key="stableKey" :inline="true" />
+          v-for="(seg, si) in unit.segs"
+          :key="si"
+          :class="segClass(seg)"
+        >{{ seg.text }}</text>
       </text>
 
-      <!-- 斜体 -->
-      <text v-else-if="node.tag === 'em'" class="md-em">
-        <c-token-render :nodes="node.children || []" :stable-key="stableKey" :inline="true" />
-      </text>
-
-      <!-- 代码块 -->
-      <view v-else-if="node.tag === 'fence'" class="md-fence">
-        <view class="md-fence-lang" v-if="node.info">{{ node.info }}</view>
-        <text class="md-fence-code">{{ node.content }}</text>
-      </view>
-
-      <!-- 分隔线 -->
-      <view v-else-if="node.tag === 'hr'" class="md-hr"></view>
-
-      <!-- 行内代码 -->
-      <text v-else-if="node.type === 'code_inline'" class="md-code-inline">{{ node.content }}</text>
-
-      <!-- 链接 -->
-      <text v-else-if="node.type === 'link'" class="md-link">{{ node.content }}</text>
-
-      <!-- 图片 -->
+      <!-- ===== 图片 ===== -->
       <image
-        v-else-if="node.type === 'image'"
+        v-else-if="unit.kind === 'image'"
         class="md-img"
-        :src="node.src"
+        :src="unit.src"
         mode="widthFix"
       />
 
-      <!-- 纯文本 -->
-      <text v-else-if="node.type === 'text'" class="md-text">{{ node.content }}</text>
+      <!-- ===== 块级节点 ===== -->
+      <template v-else>
+        <!-- 标题 h1-h6 -->
+        <view
+          v-if="unit.node.tag && /^h[1-6]$/.test(unit.node.tag)"
+          :class="['md-heading', 'md-' + unit.node.tag]"
+        >
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+        </view>
+
+        <!-- 段落 -->
+        <view v-else-if="unit.node.tag === 'p'" class="md-p">
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+          <text v-if="isLastCursorSpot(index)" class="cursor"></text>
+        </view>
+
+        <!-- 无序列表 -->
+        <view v-else-if="unit.node.tag === 'ul'" class="md-ul">
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+        </view>
+
+        <!-- 有序列表 -->
+        <view v-else-if="unit.node.tag === 'ol'" class="md-ol">
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+        </view>
+
+        <!-- 列表项 -->
+        <view v-else-if="unit.node.tag === 'li'" class="md-li">
+          <text class="md-li-dot">•</text>
+          <view class="md-li-body">
+            <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+          </view>
+        </view>
+
+        <!-- 引用 -->
+        <view v-else-if="unit.node.tag === 'blockquote'" class="md-quote">
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+        </view>
+
+        <!-- 表格 -->
+        <view v-else-if="unit.node.tag === 'table'" class="md-table">
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+        </view>
+        <view v-else-if="unit.node.tag === 'thead'" class="md-thead">
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+        </view>
+        <view v-else-if="unit.node.tag === 'tbody'" class="md-tbody">
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+        </view>
+        <view v-else-if="unit.node.tag === 'tr'" class="md-tr">
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+        </view>
+        <view v-else-if="unit.node.tag === 'th'" class="md-th">
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+        </view>
+        <view v-else-if="unit.node.tag === 'td'" class="md-td">
+          <c-token-render :nodes="unit.node.children || []" :stable-key="stableKey" />
+        </view>
+
+        <!-- 代码块 -->
+        <view v-else-if="unit.node.tag === 'fence'" class="md-fence">
+          <view class="md-fence-lang" v-if="unit.node.info">{{ unit.node.info }}</view>
+          <text class="md-fence-code">{{ unit.node.content }}</text>
+        </view>
+
+        <!-- 分隔线 -->
+        <view v-else-if="unit.node.tag === 'hr'" class="md-hr"></view>
+      </template>
     </block>
   </view>
 </template>
@@ -167,8 +214,18 @@ export default defineComponent({
 .token-render {
   display: inline;
 }
-.token-render-inline {
-  /* 行内根：让 strong/em 内的文字随外层排版，不换行不撑块 */
+
+/* 行内文本容器：让内部各段 <text> 顺排 */
+.md-inline {
+  display: inline;
+}
+/* 行内段基类：保留换行/空格，随内容折行 */
+.md-seg {
+  font-size: 28rpx;
+  line-height: 1.7;
+  color: #1a1a1a;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .md-heading {
