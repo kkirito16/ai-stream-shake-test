@@ -20,6 +20,13 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    // 行内模式：根元素用 <text> 而非 <view>。
+    // 微信小程序中 <view> 嵌在 <text> 内其文字不会渲染，
+    // 因此 strong/em 等行内节点的子树必须以 <text> 为根，否则内容被吞。
+    inline: {
+      type: Boolean,
+      default: false,
+    },
   },
   methods: {
     nodeKey(node: RenderNode, index: number): string {
@@ -35,7 +42,27 @@ export default defineComponent({
 </script>
 
 <template>
-  <view class="token-render">
+  <!-- 行内上下文用 <text> 作根（小程序 <text> 内只认文本/<text>）；块级用 <view> -->
+  <text v-if="inline" class="token-render-inline">
+    <block v-for="(node, index) in nodes" :key="nodeKey(node, index)">
+      <!-- 加粗（可嵌套） -->
+      <text v-if="node.tag === 'strong'" class="md-strong">
+        <c-token-render :nodes="node.children || []" :stable-key="stableKey" :inline="true" />
+      </text>
+      <!-- 斜体 -->
+      <text v-else-if="node.tag === 'em'" class="md-em">
+        <c-token-render :nodes="node.children || []" :stable-key="stableKey" :inline="true" />
+      </text>
+      <!-- 行内代码 -->
+      <text v-else-if="node.type === 'code_inline'" class="md-code-inline">{{ node.content }}</text>
+      <!-- 链接 -->
+      <text v-else-if="node.type === 'link'" class="md-link">{{ node.content }}</text>
+      <!-- 纯文本 -->
+      <text v-else-if="node.type === 'text'" class="md-text">{{ node.content }}</text>
+    </block>
+  </text>
+
+  <view v-else class="token-render">
     <block v-for="(node, index) in nodes" :key="nodeKey(node, index)">
       <!-- 标题 h1-h6 -->
       <view
@@ -97,14 +124,14 @@ export default defineComponent({
         <c-token-render :nodes="node.children || []" :stable-key="stableKey" />
       </view>
 
-      <!-- 加粗 -->
+      <!-- 加粗：子树必须以 inline(<text>) 为根，否则小程序内文字被吞 -->
       <text v-else-if="node.tag === 'strong'" class="md-strong">
-        <c-token-render :nodes="node.children || []" :stable-key="stableKey" />
+        <c-token-render :nodes="node.children || []" :stable-key="stableKey" :inline="true" />
       </text>
 
       <!-- 斜体 -->
       <text v-else-if="node.tag === 'em'" class="md-em">
-        <c-token-render :nodes="node.children || []" :stable-key="stableKey" />
+        <c-token-render :nodes="node.children || []" :stable-key="stableKey" :inline="true" />
       </text>
 
       <!-- 代码块 -->
@@ -139,6 +166,9 @@ export default defineComponent({
 <style lang="scss" scoped>
 .token-render {
   display: inline;
+}
+.token-render-inline {
+  /* 行内根：让 strong/em 内的文字随外层排版，不换行不撑块 */
 }
 
 .md-heading {
