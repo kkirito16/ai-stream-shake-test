@@ -22,11 +22,36 @@ export function sanitizeStreamingMarkdown(raw: string): string {
   if (((raw.match(/```/g) || []).length) % 2 === 1) return raw;
 
   let text = raw;
-  text = cutIncompleteLink(text); // 未完成的 [t](u) / ![t](u) → 暂时隐藏
-  text = balanceBacktick(text);   // 行内代码 `
-  text = balanceStars(text);      // 加粗 ** / 斜体 *
-  text = balanceTilde(text);      // 删除线 ~~
+  text = cutIncompleteHtmlTag(text); // 未闭合的 <tag / </tag 碎片 → 暂时隐藏
+  text = cutIncompleteLink(text);    // 未完成的 [t](u) / ![t](u) → 暂时隐藏
+  text = balanceBacktick(text);      // 行内代码 `
+  text = balanceStars(text);         // 加粗 ** / 斜体 *
+  text = balanceTilde(text);         // 删除线 ~~
   return text;
+}
+
+/**
+ * 处理末尾「正在输入、尚未闭合」的 HTML 标签碎片。
+ * 逐字接收时 `<blue>港股</blue>` 会先冒出 `<`、`<blue`、`</blue` 这类半截标签
+ * （markdown-it 把未补 `>` 的部分当纯文本 text 显示），补 `>` 后才变成
+ * html_inline 被渲染层丢弃。这一闪一消就是「标签闪烁」。
+ *
+ * 策略：若末尾存在一个尚未配对 `>` 的 `<`，且它看起来像标签起始
+ * （`<x` / `</x` / 末尾单个 `<`），就从该 `<` 处裁断，等 `>` 到齐再显示。
+ * 对「a < b」这类比较号（`<` 后紧跟空格）不误伤；对已闭合标签恒等不变。
+ */
+function cutIncompleteHtmlTag(text: string): string {
+  const lt = text.lastIndexOf('<');
+  if (lt === -1) return text;
+
+  const rest = text.slice(lt);
+  if (rest.includes('>')) return text; // 该 `<` 已闭合 → 不处理
+
+  // 像标签起始（<x / </x）或正在输入的末尾单个 `<` → 从 `<` 处隐藏
+  if (rest === '<' || /^<\/?[a-zA-Z]/.test(rest)) {
+    return text.slice(0, lt);
+  }
+  return text; // 其它（如 `< ` 比较号）→ 保留
 }
 
 /**
