@@ -47,8 +47,11 @@ function cutIncompleteHtmlTag(text: string): string {
   const rest = text.slice(lt);
   if (rest.includes('>')) return text; // 该 `<` 已闭合 → 不处理
 
-  // 像标签起始（<x / </x）或正在输入的末尾单个 `<` → 从 `<` 处隐藏
-  if (rest === '<' || /^<\/?[a-zA-Z]/.test(rest)) {
+  // 像标签起始的碎片 → 从 `<` 处隐藏。覆盖逐字到达的各阶段：
+  //   `<`（单个）、`</`（斜杠先到、标签名未到）、`<x`、`</x`、`<blue`、`</blue`
+  // 判据：`<` 后第二个字符是 `/` 或字母，或就是末尾单个 `<`。
+  // 对 `a < b`（`<` 后是空格/数字）等比较号不误伤；已闭合标签含 `>` 前面已返回。
+  if (rest === '<' || /^<[/a-zA-Z]/.test(rest)) {
     return text.slice(0, lt);
   }
   return text; // 其它（如 `< ` 比较号）→ 保留
