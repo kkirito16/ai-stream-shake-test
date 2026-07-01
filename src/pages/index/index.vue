@@ -140,7 +140,7 @@ export default defineComponent({
 
         <view class="field field-full">
           <text class="field-label">模拟回复内容（发送后会流式返回这段内容）</text>
-          <textarea class="field-textarea" v-model="replyText" placeholder="输入 AI 要返回的内容，支持 Markdown..." />
+          <textarea class="field-textarea" v-model="replyText" :maxlength="-1" placeholder="输入 AI 要返回的内容，支持 Markdown..." />
         </view>
       </view>
     </view>
@@ -181,6 +181,7 @@ export default defineComponent({
       <input
         class="input-box"
         v-model="inputText"
+        :maxlength="-1"
         placeholder="输入消息..."
         confirm-type="send"
         @confirm="send"
