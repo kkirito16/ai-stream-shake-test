@@ -33,6 +33,24 @@ export default defineComponent({
     const sim = useStreamSim();
     const { state, cfg } = sim;
 
+    // ===== 顶部安全区(状态栏 + 小程序胶囊按钮) =====
+    const statusBarHeight = ref(0); // px
+    const navRowHeight = ref(44); // px，导航内容行高
+    const navRightGap = ref(24); // px，右侧给胶囊按钮留出的空隙
+    try {
+      const info: any = uni.getSystemInfoSync();
+      statusBarHeight.value = info.statusBarHeight || 0;
+      // #ifdef MP-WEIXIN
+      const menu: any = uni.getMenuButtonBoundingClientRect();
+      if (menu && menu.height) {
+        // 让导航内容行与胶囊垂直居中对齐
+        navRowHeight.value = (menu.top - statusBarHeight.value) * 2 + menu.height;
+        // 内容右侧不越过胶囊左边缘
+        navRightGap.value = (info.screenWidth || info.windowWidth) - menu.left + 8;
+      }
+      // #endif
+    } catch (e) {}
+
     // ===== 设置 =====
     const replyText = ref(DEFAULT_REPLY);
     const settingsOpen = ref(true);
@@ -99,6 +117,7 @@ export default defineComponent({
 
     return {
       state, cfg,
+      statusBarHeight, navRowHeight, navRightGap,
       replyText, settingsOpen,
       messages, inputText, scrollIntoView,
       send, clearChat, toggleSettings,
@@ -109,10 +128,15 @@ export default defineComponent({
 
 <template>
   <view class="page">
-    <!-- 顶部标题 -->
-    <view class="topbar">
-      <text class="topbar-title">AI 流式回复测试</text>
-      <text class="topbar-clear" @click="clearChat">清空</text>
+    <!-- 顶部标题（自定义导航栏，预留状态栏 + 胶囊安全区） -->
+    <view class="topbar" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <view
+        class="topbar-inner"
+        :style="{ height: navRowHeight + 'px', paddingRight: navRightGap + 'px' }"
+      >
+        <text class="topbar-title">AI 流式回复测试</text>
+        <text class="topbar-clear" @click="clearChat">清空</text>
+      </view>
     </view>
 
     <!-- ===== 设置区 ===== -->
@@ -203,14 +227,15 @@ export default defineComponent({
 
 /* 顶部 */
 .topbar {
-  height: 88rpx;
+  background: #fff;
+  border-bottom: 1rpx solid #e5e6eb;
+  flex-shrink: 0;
+}
+.topbar-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 32rpx;
-  background: #fff;
-  border-bottom: 1rpx solid #e5e6eb;
-  flex-shrink: 0;
 }
 .topbar-title {
   font-size: 32rpx;
