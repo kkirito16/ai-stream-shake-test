@@ -1,33 +1,126 @@
 // streamMarkdownSanitizer.ts
-// 流式 Markdown 消歧：处理流式逐字接收时行内标记的「符号闪现」问题。
+// 流式 Markdown 消歧：处理流式逐字接收时「符号闪现」问题（行内标记 + 块级表格）。
 //
-// 问题：逐字接收时，`**abc**` 会先显示裸的 `**`，等闭合符号到了才「突然变粗」，
+// 问题 A（行内）：逐字接收时，`**abc**` 会先显示裸的 `**`，等闭合符号到了才「突然变粗」，
 //       行内代码 `code`、斜体 *x*、删除线 ~~x~~、链接 [t](u) 同理，符号一闪一闪。
+// 问题 B（块级表格）：GFM 表格必须「表头行 + 分隔行 |---| 」两行齐全才成立。流式时表头
+//       先到、分隔行还没来，markdown-it 只能把 `| 指标 |` 当普通段落，于是裸竖线闪现，
+//       等分隔行到齐才突变成表格。
 //
-// 方案：在「送去渲染之前」，对末尾**未闭合的行内标记**做处理：
-//   1) 裸符号（刚冒头、后面还没内容）→ 裁掉，先不显示；
-//   2) 已有内容但未闭合 → 乐观补上「虚拟闭合符」，让 markdown-it 直接解析成
-//      strong/em/code/del，于是内容以「最终样式」逐字出现，特殊符号从不露面。
+// 方案：在「送去渲染之前」，先做块级表格消歧，再做行内标记消歧：
+//   块级：表头逐字输入中→暂时隐藏；表头定格但分隔行未齐→按表头列数合成完整分隔行，
+//         让 md 立刻成表（先出框架再填数据）；分隔行已列数匹配→恒等。
+//   行内：1) 裸符号（刚冒头、后面还没内容）→ 裁掉，先不显示；
+//         2) 已有内容但未闭合 → 乐观补上「虚拟闭合符」，让 markdown-it 直接解析成
+//            strong/em/code/del，内容以「最终样式」逐字出现，特殊符号从不露面。
 //
-// 关键不变量：对「已完整闭合」的文本，本函数是恒等变换（不改一个字），
+// 关键不变量：对「已完整闭合/已成表」的文本，本函数是恒等变换（不改一个字），
 //            因此流式结束态永远等于原始全文，绝不丢字符。
 
 /**
- * 对流式过程中的「已消费文本」做行内标记消歧，返回用于渲染的展示文本。
+ * 对流式过程中的「已消费文本」做消歧，返回用于渲染的展示文本。
  */
 export function sanitizeStreamingMarkdown(raw: string): string {
   if (!raw) return raw;
 
-  // 未闭合的围栏代码块 ``` 内：符号本就该原样显示，直接返回不做行内消歧。
+  // 未闭合的围栏代码块 ``` 内：符号本就该原样显示，直接返回不做消歧。
   if (((raw.match(/```/g) || []).length) % 2 === 1) return raw;
 
   let text = raw;
+  text = sanitizeStreamingTable(text); // 块级：表格「表头/分隔行」未齐时的裸竖线闪现
   text = cutIncompleteHtmlTag(text); // 未闭合的 <tag / </tag 碎片 → 暂时隐藏
   text = cutIncompleteLink(text);    // 未完成的 [t](u) / ![t](u) → 暂时隐藏
   text = balanceBacktick(text);      // 行内代码 `
   text = balanceStars(text);         // 加粗 ** / 斜体 *
   text = balanceTilde(text);         // 删除线 ~~
   return text;
+}
+
+// ============================ 块级：表格消歧 ============================
+//
+// GFM 表格成立条件：连续两行「表头行 + 分隔行」，且分隔行列数 == 表头列数。
+// 流式逐字到达时的典型序列（会闪裸竖线的只有「未成表」阶段）：
+//   | 指标                      ← 表头输入中（未换行，列数未定）→ 隐藏
+//   | 指标 | 涨跌 |             ← 表头输入中 → 隐藏
+//   | 指标 | 涨跌 |\n           ← 表头定格、分隔行0字 → 合成 | --- | --- | 立即成表
+//   | 指标 | 涨跌 |\n|          ← 分隔行半截 → 合成完整分隔行顶上
+//   | 指标 | 涨跌 |\n| ---      ← 分隔行半截(列数不足) → 合成完整分隔行顶上
+//   | 指标 | 涨跌 |\n| --- | ---← 分隔行列数已匹配(GFM 不需尾|) → 恒等，md 自然成表
+//   | 指标 | 涨跌 |\n| --- | --- |\n| 6/23 ← 已成表，数据行在表格上下文内，不闪 → 恒等
+
+/** 整行是否为分隔行：只由 | - : 空格 组成且至少含一个 - 。 */
+function isDelimiterRow(line: string): boolean {
+  const t = line.trim();
+  if (!t) return false;
+  if (!/^[|\-:\s]+$/.test(t)) return false;
+  return t.includes('-');
+}
+
+/** 数一行的列数：去掉首尾 | 后按 | 切分。`| a | b |` → 2；`| 指标 |` → 1。 */
+function tableColumns(line: string): number {
+  let t = line.trim();
+  if (t.startsWith('|')) t = t.slice(1);
+  if (t.endsWith('|')) t = t.slice(0, -1);
+  return t.split('|').length;
+}
+
+/** 按列数合成一条完整分隔行：cols=2 → `| --- | --- |`。 */
+function makeDelimiterRow(cols: number): string {
+  return '| ' + Array(cols).fill('---').join(' | ') + ' |';
+}
+
+/**
+ * 表格块级消歧：只处理文本「末尾正在形成的表格块」。
+ * - 已成表（分隔行列数匹配）→ 恒等；
+ * - 表头输入中（未换行、无分隔行）→ 隐藏表头行；
+ * - 表头定格 / 分隔行未齐 → 合成完整分隔行，立即成表。
+ */
+function sanitizeStreamingTable(text: string): string {
+  if (!text.includes('|')) return text; // 没竖线，肯定没表格
+
+  const lines = text.split('\n');
+  const n = lines.length;
+  const endsWithNL = lines[n - 1] === ''; // 末尾换行 → 最后一"实"行是 n-2
+  const topIdx = endsWithNL ? n - 2 : n - 1;
+  if (topIdx < 0) return text;
+
+  // 向上收集连续含 '|' 的行，构成末尾表格块（空行/不含|的普通行会中断表格）
+  let s = topIdx;
+  while (s >= 0 && lines[s].includes('|')) s--;
+  const blockStart = s + 1;
+  if (blockStart > topIdx) return text; // 末尾实行不含 | → 非表格块，交给行内层
+
+  const header = lines[blockStart];
+  // 强信号约束：只处理「行首以 | 起」的表头，避免把普通句子里的竖线
+  // （如 `价格 100 | 200 元`、`命令 a | b`）误判成表头而错补分隔行、破坏恒等。
+  // 真实 AI 输出的表格表头几乎总带首竖线（`| 指标 |`），此约束足够安全。
+  if (!header.trim().startsWith('|')) return text;
+  const cols = tableColumns(header);
+  if (cols < 1) return text;
+
+  const secondIdx = blockStart + 1; // 分隔行应在的位置
+  const hasSecond = secondIdx <= topIdx;
+
+  // 已成表：分隔行存在且列数匹配 → 恒等（数据行阶段在表格上下文内，不闪）
+  if (hasSecond && isDelimiterRow(lines[secondIdx]) && tableColumns(lines[secondIdx]) === cols) {
+    return text;
+  }
+
+  // 未成表：分几种情况处理
+  if (!hasSecond) {
+    // 块内只有表头行
+    if (endsWithNL) {
+      // 表头已换行、分隔行 0 字 → 合成分隔行接上，立即成表（先出框架）
+      return [...lines.slice(0, topIdx + 1), makeDelimiterRow(cols)].join('\n');
+    }
+    // 表头还在逐字输入（未换行）→ 隐藏表头行，避免裸竖线闪现
+    return lines.slice(0, blockStart).join('\n');
+  }
+
+  // 有第二行但不是「列数匹配的合法分隔行」（半截 / 列数不足 / 空 |）
+  // → 用表头列数合成完整分隔行顶上，丢弃半截，保持成表状态
+  const before = lines.slice(0, blockStart);
+  return [...before, header, makeDelimiterRow(cols)].join('\n');
 }
 
 /**
@@ -88,7 +181,7 @@ function balanceBacktick(text: string): string {
   const last = text.lastIndexOf('`');
   const after = text.slice(last + 1);
   if (after.trim() === '') return text.slice(0, last); // 裸符号 → 裁掉
-  return text + '`';                                   // 补闭合
+  return appendCloser(text, '`');                      // 补闭合（避开末尾空白）
 }
 
 /**
@@ -147,7 +240,31 @@ function closeMarker(text: string, width: 1 | 2): string {
   if (after.trim() === '') {
     return text.slice(0, lastPos); // 裸符号刚冒头 → 裁掉
   }
-  return text + marker;            // 有内容未闭合 → 乐观补闭合
+  return appendCloser(text, marker); // 有内容未闭合 → 乐观补闭合
+}
+
+/**
+ * 乐观补闭合符时的两个关键细节：
+ * 1) 闭合定界符（** / * / ~~ / `）**不能紧跟在空白之后**，否则不构成 right-flanking，
+ *    整对标记解析失败、开头的定界符会以字面量露出来（逐字到达时正文常停在「… 空格」处，
+ *    例如 `**腾讯…跌破 4 `，直接末尾补 ** 会失效）。→ 末尾空白必须留在闭合符外部。
+ * 2) 末尾若已冒出「新一轮同类标记的碎片」（如 `**abc：*` 里刚到的单个 `*`），直接补会
+ *    拼成 `***` 又露一个符号。这种刚冒头、还没内容的碎片先**隐藏**，下一 tick 内容到了
+ *    会自然重算（本函数每次都从 raw 全量重算，隐藏是暂时的，不丢字）。
+ *
+ * 做法：先剥掉末尾空白，再剥掉紧贴的同类标记碎片得到真实内容 core；
+ *      闭合符贴到 core 之后，末尾空白原样接回标记外部。
+ */
+function appendCloser(text: string, marker: string): string {
+  const markerChar = marker[0];
+  const wsMatch = text.match(/\s+$/);
+  const trailingWs = wsMatch ? wsMatch[0] : '';
+  const noWs = trailingWs ? text.slice(0, text.length - trailingWs.length) : text;
+  // 剥掉紧贴末尾的同类标记碎片（如末尾多出的 * 或 `）
+  const escaped = markerChar === '*' ? '\\*' : markerChar;
+  const core = noWs.replace(new RegExp(`${escaped}+$`), '');
+  if (!core) return text; // 全是标记/空白，无实际内容 → 不动
+  return core + marker + trailingWs;
 }
 
 /**
@@ -158,5 +275,5 @@ function balanceTilde(text: string): string {
   const last = text.lastIndexOf('~~');
   const after = text.slice(last + 2);
   if (after.trim() === '') return text.slice(0, last);
-  return text + '~~';
+  return appendCloser(text, '~~');
 }
